@@ -25,9 +25,7 @@ import math
 import os
 import random
 import re
-import sys
 import time
-import types
 import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter
@@ -37,31 +35,8 @@ from itertools import combinations
 import pandas as pd
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageOps
-
-# ------------------------------------------------------------------
-# توافق streamlit-drawable-canvas مع إصدارات Streamlit الحديثة
-# (المكتبة تستورد streamlit.elements.image الذي نُقل في الإصدارات الجديدة)
-# ------------------------------------------------------------------
-try:
-    import streamlit.elements.image  # noqa: F401
-except ModuleNotFoundError:
-    try:
-        from streamlit.elements.lib import image_utils as _image_utils
-
-        _shim = types.ModuleType("streamlit.elements.image")
-        _shim.image_to_url = _image_utils.image_to_url
-        sys.modules["streamlit.elements.image"] = _shim
-    except Exception:
-        pass
-
-try:
-    from streamlit_drawable_canvas import st_canvas
-
-    CANVAS_ERROR = None
-except Exception as exc:  # pragma: no cover
-    st_canvas = None
-    CANVAS_ERROR = str(exc)
 
 try:
     from pypdf import PdfReader
@@ -133,37 +108,6 @@ CHAT_SUGGESTIONS = [
     ("✍️", "كيف أكتب مقالاً علمياً قوياً ومنظماً؟"),
     ("🔢", "حلّ معي معادلة تربيعية خطوة بخطوة"),
 ]
-
-# ---------------- السبورة ----------------
-BOARD_TOOLS = {
-    "freedraw": "✏️ قلم",
-    "eraser": "🧽 ممحاة",
-    "line": "📏 خط",
-    "rect": "⬜ مستطيل",
-    "circle": "⭕ دائرة",
-    "transform": "✋ تحريك",
-}
-PEN_COLORS = {
-    "white": ("⚪ أبيض", "#f8fafc"),
-    "black": ("⚫ أسود", "#0f172a"),
-    "red": ("🔴 أحمر", "#ef4444"),
-    "blue": ("🔵 أزرق", "#3b82f6"),
-    "green": ("🟢 أخضر", "#22c55e"),
-    "yellow": ("🟡 أصفر", "#facc15"),
-    "purple": ("🟣 بنفسجي", "#a855f7"),
-    "custom": ("🎨 مخصص", None),
-}
-BOARD_BACKGROUNDS = {
-    "dark": ("🌑 سبورة داكنة", "#0b1222"),
-    "white": ("⬜ سبورة بيضاء", "#ffffff"),
-    "chalk": ("🟩 سبورة طباشير", "#123524"),
-}
-# نسبة عرض إلى ارتفاع متقاربة لكل الأحجام حتى يتحجّم الرسم بين الأحجام دون تشويه
-BOARD_SIZES = {
-    "s": ("صغيرة", 780, 440),
-    "m": ("متوسطة", 940, 540),
-    "l": ("كبيرة", 1140, 650),
-}
 
 # ---------------- الجداول ----------------
 COL_SUBJECT = "المادة"
@@ -721,9 +665,6 @@ def new_user_data(username, password, display_name=None):
         "messages": [],
         "sheet": sample_sheet(),
         "sheet_v": 0,
-        "board_saved": None,
-        "board_live": None,
-        "board_v": 0,
         "notebook": {},
         "processed_files": [],
         "pomo": {
@@ -814,21 +755,7 @@ def demo_login():
     start_session(key, "مرحباً بك في الحساب التجريبي لـ Vita ✨")
 
 
-def snapshot_workspace():
-    """يحفظ رسم السبورة قبل مغادرة الصفحة (تعديلات الجدول تُحفظ فور حدوثها)."""
-    if not st.session_state.get("current_user"):
-        return
-    u = U()
-    if u.get("board_live") is not None:
-        u["board_saved"] = u["board_live"]
-
-
-def on_nav_change():
-    snapshot_workspace()
-
-
 def logout():
-    snapshot_workspace()
     log_activity("🚪", "تسجيل الخروج")
     st.session_state.current_user = None
     st.session_state.pop("pending_prompt", None)
@@ -1601,7 +1528,6 @@ def render_sidebar():
             format_func=PAGES.get,
             key="page",
             label_visibility="collapsed",
-            on_change=on_nav_change,
         )
         html_block(
             '<div class="vita-mini-stats">'
@@ -1702,54 +1628,16 @@ def page_chat():
 
 
 # ==================================================================
-# 2) السبورة التفاعلية
+# 2) السبورة التفاعلية (دفتر ملاحظات بأوراق حقيقية)
 # ==================================================================
-def save_board_snapshot():
-    u = U()
-    if u.get("board_live") is not None:
-        u["board_saved"] = u["board_live"]
+WHITEBOARD_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "whiteboard.html")
 
 
-def scale_drawing(drawing, factor):
-    """يكبّر/يصغّر كل عناصر الرسم بنفس النسبة لتبقى في مكانها النسبي عند تغيير حجم اللوحة."""
-    if not drawing or factor == 1:
-        return drawing
-    scaled = json.loads(json.dumps(drawing))
-    for obj in scaled.get("objects", []):
-        obj["left"] = obj.get("left", 0) * factor
-        obj["top"] = obj.get("top", 0) * factor
-        obj["scaleX"] = obj.get("scaleX", 1) * factor
-        obj["scaleY"] = obj.get("scaleY", 1) * factor
-    return scaled
-
-
-def on_board_resize():
-    """عند تغيير حجم اللوحة: نحفظ الرسم الحالي ونحجّمه للمقاس الجديد."""
-    u = U()
-    old = BOARD_SIZES[u.get("board_dims", "m")]
-    new = BOARD_SIZES[st.session_state.board_dims]
-    drawing = u.get("board_live") or u.get("board_saved")
-    u["board_saved"] = scale_drawing(drawing, min(new[1] / old[1], new[2] / old[2]))
-    u["board_live"] = None
-    u["board_dims"] = st.session_state.board_dims
-
-
-def clear_board():
-    u = U()
-    u["board_saved"] = None
-    u["board_live"] = None
-    u["board_v"] += 1
-    flash("تم مسح السبورة", icon="🗑️")
-
-
-def on_board_download():
-    U()["stats"]["boards"] += 1
-    log_activity("🎨", "نزّلت لوحة من السبورة التفاعلية")
-
-
-def hex_to_rgba(hex_color):
-    hex_color = hex_color.lstrip("#")
-    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4)) + (255,)
+@st.cache_data(show_spinner=False)
+def whiteboard_markup(username, mtime):
+    """الدفتر تطبيق مستقل (HTML/JS) يعمل داخل الصفحة؛ نمرر له اسم المستخدم ليحفظ صفحاته باسمه."""
+    with open(WHITEBOARD_FILE, encoding="utf-8") as fh:
+        return fh.read().replace('"__VITA_USER__"', json.dumps(username))
 
 
 def page_board():
@@ -1757,106 +1645,16 @@ def page_board():
     page_header(
         "🎨",
         "السبورة التفاعلية",
-        "Interactive Whiteboard",
-        "ارسم واشرح وخطّط أفكارك بحرية، ثم نزّل لوحتك كصورة بضغطة زر.",
+        "Vita Notes",
+        "دفتر بأوراق مسطّرة ومربعات، صفحات متعددة، أدوات هندسية بالقياسات، وحفظ PDF.",
     )
-    if st_canvas is None:
-        st.error(f"تعذّر تحميل مكتبة السبورة (streamlit-drawable-canvas): {CANVAS_ERROR}", icon="⚠️")
-        return
-
-    with st.container(border=True):
-        left, right = st.columns([1.55, 1])
-        with left:
-            tool = st.radio(
-                "🛠️ الأداة", list(BOARD_TOOLS), format_func=BOARD_TOOLS.get, horizontal=True, key="board_tool"
-            )
-            color_key = st.radio(
-                "🎨 لون القلم",
-                list(PEN_COLORS),
-                format_func=lambda k: PEN_COLORS[k][0],
-                horizontal=True,
-                key="board_color",
-            )
-        with right:
-            if color_key == "custom":
-                stroke_color = st.color_picker("لون مخصص", "#f472b6", key="board_custom_color")
-            else:
-                stroke_color = PEN_COLORS[color_key][1]
-            size = st.slider("✒️ حجم الفرشاة / الممحاة", 1, 60, 6, key="board_size")
-            c1, c2 = st.columns(2)
-            bg_key = c1.selectbox(
-                "🖼️ نوع السبورة",
-                list(BOARD_BACKGROUNDS),
-                format_func=lambda k: BOARD_BACKGROUNDS[k][0],
-                key="board_bg",
-                on_change=save_board_snapshot,
-            )
-            size_key = c2.selectbox(
-                "📐 حجم اللوحة",
-                list(BOARD_SIZES),
-                index=1,
-                format_func=lambda k: BOARD_SIZES[k][0],
-                key="board_dims",
-                on_change=on_board_resize,
-            )
-    u["board_dims"] = size_key
-
-    bg_color = BOARD_BACKGROUNDS[bg_key][1]
-    _, width, height = BOARD_SIZES[size_key]
-    is_eraser = tool == "eraser"
-    if is_eraser:
-        st.caption("🧽 الممحاة تمسح بلون خلفية السبورة — يمكنك أيضاً استخدام أزرار التراجع أسفل اللوحة.")
-    if size_key == "l":
-        st.caption("💡 إذا لم تظهر اللوحة الكبيرة كاملة، أغلق الشريط الجانبي من زر « في أعلاه لتتسع الصفحة.")
-
-    canvas = st_canvas(
-        fill_color="rgba(0, 0, 0, 0)",
-        stroke_width=size,
-        stroke_color=bg_color if is_eraser else stroke_color,
-        background_color=bg_color,
-        initial_drawing=u["board_saved"],
-        update_streamlit=True,
-        height=height,
-        width=width,
-        drawing_mode="freedraw" if is_eraser else tool,
-        display_toolbar=True,
-        # المكتبة لا تعيد ضبط طبقة الخلفية عند تغيير المقاس، فيظهر الخط في غير مكانه؛
-        # لذلك نعيد إنشاء اللوحة (مع الرسم المحفوظ) كلما تغيّر الحجم أو نوع السبورة
-        key=f"board_canvas_{u['board_v']}_{size_key}_{bg_key}",
+    components.html(
+        whiteboard_markup(u["username"], os.path.getmtime(WHITEBOARD_FILE)), height=880, scrolling=False
     )
-
-    objects = []
-    if canvas is not None and canvas.json_data is not None:
-        u["board_live"] = canvas.json_data
-        objects = canvas.json_data.get("objects", [])
-
-    a, b, c = st.columns([1, 1, 1.2])
-    with a:
-        st.button("🗑️ مسح السبورة", key="board_clear", on_click=clear_board)
-    with b:
-        png = None
-        if canvas is not None and canvas.image_data is not None and objects:
-            drawing = Image.fromarray(canvas.image_data.astype("uint8"), "RGBA")
-            background = Image.new("RGBA", drawing.size, hex_to_rgba(bg_color))
-            buffer = io.BytesIO()
-            Image.alpha_composite(background, drawing).convert("RGB").save(buffer, format="PNG")
-            png = buffer.getvalue()
-        st.download_button(
-            "⬇️ تنزيل اللوحة كصورة",
-            data=png or b"",
-            file_name=f"vita_board_{datetime.now():%Y%m%d_%H%M}.png",
-            mime="image/png",
-            disabled=png is None,
-            key="board_download",
-            on_click=on_board_download,
-            type="primary",
-        )
-    with c:
-        html_block(
-            '<div class="vita-chips" style="justify-content:center;min-height:2.65rem">'
-            f'<span class="vita-chip">✍️ عناصر مرسومة: {len(objects)}</span>'
-            f'<span class="vita-chip">🖼️ <span class="vita-ltr">{width}×{height}</span></span></div>'
-        )
+    st.caption(
+        "💡 صفحاتك تُحفظ تلقائياً في هذا المتصفح. اضغط «⛶ ملء الشاشة» للرسم على كامل الشاشة، "
+        "و«⬇️ PDF» لحفظ كل الصفحات في ملف واحد."
+    )
 
 
 # ==================================================================

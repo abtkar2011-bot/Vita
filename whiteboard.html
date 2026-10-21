@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f172a; --panel: #111a2e; --card: #1e293b; --border: #334155; --soft: rgba(148,163,184,.18);
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #8b5cf6; --accent2: #06b6d4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'Tajawal', 'Segoe UI', Tahoma, sans-serif; overflow: hidden; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ---------- شريط الأدوات ---------- */
+  #toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px;
+    background: var(--panel); border-bottom: 1px solid var(--border); }
+  .group { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 12px;
+    background: rgba(30,41,59,.65); border: 1px solid var(--soft); }
+  .tb { min-width: 38px; height: 36px; padding: 0 9px; border-radius: 9px; border: 1px solid transparent;
+    background: transparent; color: var(--text); font: inherit; font-size: 15px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
+  .tb:hover { background: rgba(139,92,246,.14); border-color: var(--border); }
+  .tb.on { background: linear-gradient(135deg, rgba(139,92,246,.45), rgba(6,182,212,.25)); border-color: rgba(139,92,246,.8); }
+  .tb.primary { background: linear-gradient(135deg, #8b5cf6, #6366f1); font-weight: 700; }
+  .tb small { font-size: 12px; color: #cbd5e1; }
+  .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); cursor: pointer; padding: 0; }
+  .sw.on { outline: 2px solid #fff; outline-offset: 2px; }
+  input[type=color] { width: 28px; height: 28px; border: none; background: none; padding: 0; cursor: pointer; }
+  input[type=range] { width: 90px; accent-color: var(--accent); }
+  select { height: 34px; border-radius: 9px; background: var(--card); color: var(--text); border: 1px solid var(--border);
+    font: inherit; font-size: 14px; padding: 0 6px; }
+  .lbl { font-size: 12px; color: var(--muted); padding: 0 4px; }
+
+  /* ---------- المساحة الرئيسية ---------- */
+  #main { flex: 1; display: flex; min-height: 0; }
+  #thumbs { width: 92px; flex-shrink: 0; overflow-y: auto; padding: 10px 8px; background: var(--panel);
+    border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .thumb { width: 72px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; background: #fff; display: block; }
+  .thumb.on { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139,92,246,.3); }
+  .thumb-wrap { text-align: center; }
+  .thumb-wrap span { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+  #scroller { flex: 1; overflow: auto; padding: 22px 18px 60px; }
+  #pages { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .page { position: relative; box-shadow: 0 10px 30px rgba(0,0,0,.45); border-radius: 4px; background: #fff; }
+  .page.on { box-shadow: 0 0 0 3px rgba(139,92,246,.55), 0 10px 30px rgba(0,0,0,.45); }
+  .page canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 4px; }
+  .page canvas.ink, .page canvas.live { touch-action: none; }
+  .penonly .page canvas.ink, .penonly .page canvas.live { touch-action: pan-y; }
+  .page .num { position: absolute; bottom: -22px; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--muted); }
+
+  #status { display: flex; gap: 14px; align-items: center; padding: 6px 14px; font-size: 13px; color: var(--muted);
+    background: var(--panel); border-top: 1px solid var(--border); }
+  #status b { color: var(--text); }
+  #hint { flex: 1; }
+  #textbox { position: fixed; display: none; z-index: 20; min-width: 160px; min-height: 44px; padding: 6px 8px;
+    border: 2px dashed var(--accent); border-radius: 8px; background: rgba(255,255,255,.95); color: #111;
+    font-family: 'Tajawal', Arial, sans-serif; resize: both; direction: rtl; outline: none; }
+  #toast { position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff;
+    padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); font-size: 14px; opacity: 0;
+    transition: opacity .25s; pointer-events: none; z-index: 30; }
+  #toast.show { opacity: 1; }
+  @media (max-width: 700px) { #thumbs { display: none; } .tb small { display: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <div class="group" id="tools">
+      <button class="tb on" data-tool="pen" title="قلم">✏️ <small>قلم</small></button>
+      <button class="tb" data-tool="hl" title="قلم تظليل">🖍️ <small>تظليل</small></button>
+      <button class="tb" data-tool="eraser" title="ممحاة (تمسح الخط كاملاً)">🧽 <small>ممحاة</small></button>
+      <button class="tb" data-tool="text" title="كتابة نص">🔤 <small>نص</small></button>
+    </div>
+    <div class="group" id="geo">
+      <button class="tb" data-tool="line" title="مسطرة: خط مستقيم مع طوله">📏 <small>مسطرة</small></button>
+      <button class="tb" data-tool="arrow" title="سهم">↗️</button>
+      <button class="tb" data-tool="rect" title="مستطيل مع أبعاده">▭</button>
+      <button class="tb" data-tool="circle" title="دائرة: اسحب من المركز، ويظهر القطر أثناء الرسم">⭕ <small>دائرة</small></button>
+      <button class="tb" data-tool="tri" title="مثلث: ثلاث نقرات، مع الأضلاع والزوايا">△ <small>مثلث</small></button>
+      <button class="tb" data-tool="angle" title="منقلة: الرأس ثم ضلعا الزاوية">📐 <small>منقلة</small></button>
+      <button class="tb" id="snapBtn" title="مغناطيس الشبكة: النقاط تلتصق بشبكة 5 ملم">🧲</button>
+      <button class="tb" id="measureBtn" title="إبقاء القياسات ظاهرة على الأشكال بعد رسمها">🔢</button>
+    </div>
+    <div class="group" id="colors"></div>
+    <div class="group"><span class="lbl">السُّمك</span><input type="range" id="width" min="1" max="30" value="4"></div>
+    <div class="group">
+      <button class="tb" id="undoBtn" title="تراجع (Ctrl+Z)">↶</button>
+      <button class="tb" id="redoBtn" title="إعادة (Ctrl+Y)">↷</button>
+      <button class="tb" id="clearBtn" title="مسح الصفحة">🧹</button>
+    </div>
+    <div class="group">
+      <select id="paper" title="نوع الورق">
+        <option value="lined">📒 مسطّر</option>
+        <option value="grid">🔲 مربعات</option>
+        <option value="dots">⠿ منقّط</option>
+        <option value="graph">📈 رسم بياني</option>
+        <option value="blank">⬜ سادة</option>
+      </select>
+      <select id="paperColor" title="لون الورق">
+        <option value="white">أبيض</option>
+        <option value="cream">كريمي</option>
+        <option value="dark">داكن</option>
+      </select>
+      <select id="orient" title="اتجاه الصفحات الجديدة">
+        <option value="p">عمودي</option>
+        <option value="l">أفقي</option>
+      </select>
+    </div>
+    <div class="group">
+      <button class="tb" id="addPage" title="إضافة صفحة بعد الصفحة الحالية">➕ <small>صفحة</small></button>
+      <button class="tb" id="delPage" title="حذف الصفحة الحالية">🗑️</button>
+    </div>
+    <div class="group">
+      <select id="zoom" title="حجم العرض">
+        <option value="0.6">60%</option><option value="0.8">80%</option>
+        <option value="1" selected>ملء العرض</option><option value="1.25">125%</option><option value="1.5">150%</option>
+      </select>
+      <button class="tb" id="penOnly" title="الرسم بالقلم الإلكتروني فقط (الإصبع للتمرير)">✍️</button>
+      <button class="tb primary" id="pdfBtn" title="حفظ كل الصفحات كملف PDF">⬇️ PDF</button>
+      <button class="tb" id="pngBtn" title="حفظ الصفحة الحالية كصورة">🖼️</button>
+      <button class="tb" id="fsBtn" title="ملء الشاشة">⛶ <small>ملء الشاشة</small></button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="thumbs"></div>
+    <div id="scroller"><div id="pages"></div></div>
+  </div>
+  <div id="status"><span id="pageInfo"></span><span id="hint"></span><span id="saved"></span></div>
+</div>
+<textarea id="textbox" placeholder="اكتب هنا… (Enter للحفظ، Shift+Enter لسطر جديد)"></textarea>
+<div id="toast"></div>
+
+<script>
+(() => {
+  const USER = "__VITA_USER__";   // يستبدله التطبيق باسم المستخدم
+  const STORE_KEY = "vita_notes_v1_" + USER;
+  const PX_PER_CM = 1240 / 21;          // A4 بدقة 150 نقطة/بوصة
+  const SNAP = PX_PER_CM / 2;           // شبكة 5 ملم
+  const SIZES = { p: [1240, 1754], l: [1754, 1240] };
+  const COLORS = ["#111827", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#f59e0b"];
+  const PAPER_COLORS = {
+    white: { bg: "#ffffff", line: "#bcd3ec", strong: "#9fbfe0", margin: "#f2a9a9", dot: "#9aa9bd" },
+    cream: { bg: "#fbf6e9", line: "#d7c9a7", strong: "#c9b78f", margin: "#eaa3a3", dot: "#b3a37f" },
+    dark:  { bg: "#1f2937", line: "#3b4a61", strong: "#4b5d79", margin: "#9b4b55", dot: "#5b6b84" },
+  };
+  const HINTS = {
+    pen: "اكتب أو ارسم بحرية", hl: "مرّر لتظليل النص", eraser: "مرّر فوق أي خط أو شكل لمسحه",
+    text: "انقر مكان الكتابة ثم اكتب", line: "اسحب لرسم خط مستقيم — يظهر طوله وزاويته",
+    arrow: "اسحب لرسم سهم", rect: "اسحب لرسم مستطيل — يظهر الطول والعرض",
+    circle: "اسحب من مركز الدائرة إلى محيطها — يظهر القطر ونصف القطر أثناء الرسم",
+    tri: "انقر ثلاث نقاط لرسم مثلث — تظهر الأضلاع والزوايا",
+    angle: "انقر رأس الزاوية، ثم نقطة على الضلع الأول، ثم الضلع الثاني",
+  };
+
+  // ---------------- الحالة ----------------
+  let doc = load() || { pages: [newPage("lined", "white", "p")] };
+  let current = 0, tool = "pen", color = COLORS[0], width = 4;
+  let snap = false, keepMeasures = false, penOnly = false, zoom = 1;
+  const undo = new Map(), redo = new Map();   // لكل صفحة
+  const views = [];                           // عناصر DOM لكل صفحة
+
+  function newPage(paper, paperColor, orient) {
+    const [w, h] = SIZES[orient] || SIZES.p;
+    return { id: Math.random().toString(36).slice(2, 10), w, h, paper, color: paperColor, items: [] };
+  }
+  function load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+      return data && Array.isArray(data.pages) && data.pages.length ? data : null;
+    } catch (e) { return null; }
+  }
+  let saveTimer = null;
+  function save() {
+    clearTimeout(saveTimer);
+    $("#saved").textContent = "⏳ جارٍ الحفظ…";
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(doc));
+        $("#saved").textContent = "✓ محفوظ تلقائياً";
+      } catch (e) {
+        $("#saved").textContent = "⚠️ الذاكرة ممتلئة — احفظ PDF واحذف بعض الصفحات";
+      }
+    }, 500);
+  }
+  const $ = (s) => document.querySelector(s);
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  // ---------------- رسم الورق ----------------
+  function drawPaper(ctx, page) {
+    const pc = PAPER_COLORS[page.color] || PAPER_COLORS.white;
+    const { w, h } = page;
+    ctx.fillStyle = pc.bg; ctx.fillRect(0, 0, w, h);
+    ctx.lineWidth = 1.6;
+    if (page.paper === "lined") {
+      const gap = 56, top = 190;
+      ctx.strokeStyle = pc.line;
+      for (let y = top; y < h - 40; y += gap) line(ctx, 0, y, w, y);
+      ctx.strokeStyle = pc.margin; ctx.lineWidth = 2.4;
+      line(ctx, w - 150, 0, w - 150, h);          // هامش على اليمين للكتابة العربية
+      ctx.strokeStyle = pc.strong; ctx.lineWidth = 2;
+      line(ctx, 0, top - gap, w, top - gap);
+    } else if (page.paper === "grid" || page.paper === "graph") {
+      const minor = page.paper === "grid" ? SNAP : PX_PER_CM / 5;
+      for (let x = 0, i = 0; x <= w; x += minor, i++) {
+        const major = page.paper === "graph" ? i % 5 === 0 : i % 2 === 0;
+        ctx.strokeStyle = major ? pc.strong : pc.line; ctx.lineWidth = major ? 1.6 : 0.8;
+        line(ctx, x, 0, x, h);
+      }
+      for (let y = 0, i = 0; y <= h; y += minor, i++) {
+        const major = page.paper === "graph" ? i % 5 === 0 : i % 2 === 0;
+        ctx.strokeStyle = major ? pc.strong : pc.line; ctx.lineWidth = major ? 1.6 : 0.8;
+        line(ctx, 0, y, w, y);
+      }
+    } else if (page.paper === "dots") {
+      ctx.fillStyle = pc.dot;
+      for (let y = SNAP; y < h; y += SNAP) for (let x = SNAP; x < w; x += SNAP) {
+        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  function line(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+
+  // ---------------- القياسات ----------------
+  const cm = (px) => (px / PX_PER_CM).toFixed(1);
+  const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  function angleAt(v, a, b) {
+    const a1 = Math.atan2(a[1] - v[1], a[0] - v[0]), a2 = Math.atan2(b[1] - v[1], b[0] - v[0]);
+    let d = Math.abs(a1 - a2) * 180 / Math.PI;
+    return d > 180 ? 360 - d : d;
+  }
+  function label(ctx, text, x, y, opts = {}) {
+    ctx.save();
+    ctx.font = `700 ${opts.size || 28}px Tajawal, Arial, sans-serif`;
+    ctx.direction = "rtl"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const w = ctx.measureText(text).width + 22, h = (opts.size || 28) + 16;
+    ctx.fillStyle = opts.bg || "rgba(17,24,39,.88)";
+    roundRect(ctx, x - w / 2, y - h / 2, w, h, 10); ctx.fill();
+    ctx.fillStyle = opts.fg || "#ffffff"; ctx.fillText(text, x, y + 1);
+    ctx.restore();
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function dashed(ctx, x1, y1, x2, y2, c) {
+    ctx.save(); ctx.setLineDash([14, 10]); ctx.strokeStyle = c; ctx.lineWidth = 2.5; line(ctx, x1, y1, x2, y2); ctx.restore();
+  }
+
+  // ---------------- رسم العناصر ----------------
+  function drawItem(ctx, it, live) {
+    ctx.save();
+    ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = it.c; ctx.fillStyle = it.c; ctx.lineWidth = it.w;
+    const measure = live || it.m;
+    switch (it.t) {
+      case "pen": drawStroke(ctx, it); break;
+      case "hl":
+        ctx.globalAlpha = 0.32; ctx.lineCap = "butt"; drawStroke(ctx, it, true); break;
+      case "line": case "arrow": {
+        line(ctx, it.x1, it.y1, it.x2, it.y2);
+        if (it.t === "arrow") arrowHead(ctx, it);
+        if (measure) {
+          const len = dist([it.x1, it.y1], [it.x2, it.y2]);
+          let deg = Math.atan2(-(it.y2 - it.y1), it.x2 - it.x1) * 180 / Math.PI; if (deg < 0) deg += 360;
+          label(ctx, `${cm(len)} سم · ${Math.round(deg)}°`, (it.x1 + it.x2) / 2, (it.y1 + it.y2) / 2 - 34);
+        }
+        break;
+      }
+      case "rect": {
+        ctx.strokeRect(it.x, it.y, it.wd, it.ht);
+        if (measure) {
+          label(ctx, `${cm(Math.abs(it.wd))} سم`, it.x + it.wd / 2, Math.min(it.y, it.y + it.ht) - 30);
+          label(ctx, `${cm(Math.abs(it.ht))} سم`, Math.max(it.x, it.x + it.wd) + 70, it.y + it.ht / 2);
+        }
+        break;
+      }
+      case "circle": {
+        ctx.beginPath(); ctx.arc(it.cx, it.cy, it.r, 0, Math.PI * 2); ctx.stroke();
+        if (measure && it.r > 4) {
+          const ang = it.ang || 0, dx = Math.cos(ang) * it.r, dy = Math.sin(ang) * it.r;
+          dashed(ctx, it.cx - dx, it.cy - dy, it.cx + dx, it.cy + dy, "#ef4444");      // القطر
+          ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(it.cx, it.cy, 6, 0, Math.PI * 2); ctx.fill();
+          label(ctx, `القطر = ${cm(it.r * 2)} سم`, it.cx, it.cy - 40, { bg: "rgba(220,38,38,.92)" });
+          label(ctx, `نق = ${cm(it.r)} سم`, it.cx, it.cy + 44, { size: 24 });
+        }
+        break;
+      }
+      case "tri": {
+        const p = it.pts;
+        ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]);
+        for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
+        if (p.length === 3) ctx.closePath();
+        ctx.stroke();
+        if (measure) triangleLabels(ctx, p);
+        break;
+      }
+      case "angle": {
+        const { v, a, b } = it;
+        line(ctx, v[0], v[1], a[0], a[1]);
+        if (b) {
+          line(ctx, v[0], v[1], b[0], b[1]);
+          const deg = angleAt(v, a, b);
+          const a1 = Math.atan2(a[1] - v[1], a[0] - v[0]), a2 = Math.atan2(b[1] - v[1], b[0] - v[0]);
+          let start = a1, end = a2, diff = end - start;
+          while (diff > Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          ctx.save(); ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 4; ctx.beginPath();
+          ctx.arc(v[0], v[1], 60, start, start + diff, diff < 0); ctx.stroke(); ctx.restore();
+          const mid = start + diff / 2;
+          label(ctx, `${deg.toFixed(1)}°`, v[0] + Math.cos(mid) * 115, v[1] + Math.sin(mid) * 115, { bg: "rgba(217,119,6,.92)" });
+        }
+        break;
+      }
+      case "text": {
+        ctx.font = `600 ${it.s}px Tajawal, Arial, sans-serif`;
+        ctx.direction = "rtl"; ctx.textAlign = "right"; ctx.textBaseline = "top";
+        it.txt.split("\n").forEach((row, i) => ctx.fillText(row, it.x, it.y + i * it.s * 1.35));
+        break;
+      }
+    }
+    ctx.restore();
+  }
+  function drawStroke(ctx, it, single) {
+    const p = it.p;
+    if (!p.length) return;
+    if (p.length === 1) { ctx.beginPath(); ctx.arc(p[0][0], p[0][1], it.w / 2, 0, Math.PI * 2); ctx.fill(); return; }
+    const varying = !single && p.some((q) => q[2] !== p[0][2]);
+    if (!varying) {
+      ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]);
+      for (let i = 1; i < p.length - 1; i++) {
+        const mx = (p[i][0] + p[i + 1][0]) / 2, my = (p[i][1] + p[i + 1][1]) / 2;
+        ctx.quadraticCurveTo(p[i][0], p[i][1], mx, my);
+      }
+      ctx.lineTo(p[p.length - 1][0], p[p.length - 1][1]); ctx.stroke();
+      return;
+    }
+    for (let i = 1; i < p.length; i++) {      // ضغط القلم يغيّر السُّمك
+      ctx.lineWidth = it.w * (0.45 + p[i][2] * 1.1);
+      line(ctx, p[i - 1][0], p[i - 1][1], p[i][0], p[i][1]);
+    }
+  }
+  function arrowHead(ctx, it) {
+    const ang = Math.atan2(it.y2 - it.y1, it.x2 - it.x1), s = 18 + it.w * 2.5;
+    ctx.beginPath(); ctx.moveTo(it.x2, it.y2);
+    ctx.lineTo(it.x2 - s * Math.cos(ang - 0.45), it.y2 - s * Math.sin(ang - 0.45));
+    ctx.lineTo(it.x2 - s * Math.cos(ang + 0.45), it.y2 - s * Math.sin(ang + 0.45));
+    ctx.closePath(); ctx.fill();
+  }
+  function triangleLabels(ctx, p) {
+    for (let i = 0; i < p.length - (p.length === 3 ? 0 : 1); i++) {
+      const a = p[i], b = p[(i + 1) % p.length];
+      label(ctx, `${cm(dist(a, b))} سم`, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2 - 30, { size: 24 });
+    }
+    if (p.length === 3) {
+      const cx = (p[0][0] + p[1][0] + p[2][0]) / 3, cy = (p[0][1] + p[1][1] + p[2][1]) / 3;
+      for (let i = 0; i < 3; i++) {
+        const v = p[i], deg = angleAt(v, p[(i + 1) % 3], p[(i + 2) % 3]);
+        const k = 0.28;   // داخل المثلث قرب الرأس
+        label(ctx, `${Math.round(deg)}°`, v[0] + (cx - v[0]) * k, v[1] + (cy - v[1]) * k, { size: 22, bg: "rgba(217,119,6,.92)" });
+      }
+    }
+  }
+
+  // ---------------- الصفحات في الواجهة ----------------
+  function build() {
+    const box = $("#pages"); box.innerHTML = ""; views.length = 0;
+    const thumbs = $("#thumbs"); thumbs.innerHTML = "";
+    doc.pages.forEach((page, i) => {
+      const el = document.createElement("div"); el.className = "page";
+      const bg = mk("canvas", "bg"), ink = mk("canvas", "ink"), live = mk("canvas", "live");
+      [bg, ink, live].forEach((c) => { c.width = page.w; c.height = page.h; el.appendChild(c); });
+      const num = mk("div", "num"); num.textContent = `صفحة ${i + 1}`; el.appendChild(num);
+      box.appendChild(el);
+      const wrap = mk("div", "thumb-wrap"), th = mk("canvas", "thumb");
+      th.width = 144; th.height = Math.round(144 * page.h / page.w);
+      const tl = document.createElement("span"); tl.textContent = i + 1;
+      wrap.appendChild(th); th.after(tl); thumbs.appendChild(wrap);
+      th.addEventListener("click", () => { setCurrent(i); el.scrollIntoView({ behavior: "smooth", block: "start" }); });
+      views.push({ el, bg, ink, live, th });
+      drawPaper(bg.getContext("2d"), page);
+      render(i);
+      attach(live, i);
+    });
+    layout(); setCurrent(Math.min(current, doc.pages.length - 1));
+  }
+  function mk(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }
+  function layout() {
+    const avail = $("#scroller").clientWidth - 40;
+    doc.pages.forEach((page, i) => {
+      const base = Math.min(avail, 1600);   // «ملء العرض»: الصفحة بعرض المساحة المتاحة
+      const w = Math.max(320, base * zoom);
+      views[i].el.style.width = w + "px";
+      views[i].el.style.height = (w * page.h / page.w) + "px";
+    });
+  }
+  function render(i) {
+    const page = doc.pages[i], v = views[i]; if (!v) return;
+    const ctx = v.ink.getContext("2d"); ctx.clearRect(0, 0, page.w, page.h);
+    page.items.forEach((it) => drawItem(ctx, it, false));
+    const t = v.th.getContext("2d");
+    t.drawImage(v.bg, 0, 0, v.th.width, v.th.height); t.drawImage(v.ink, 0, 0, v.th.width, v.th.height);
+  }
+  function setCurrent(i) {
+    current = i;
+    views.forEach((v, k) => { v.el.classList.toggle("on", k === i); v.th.classList.toggle("on", k === i); });
+    $("#pageInfo").innerHTML = `صفحة <b>${i + 1}</b> من <b>${doc.pages.length}</b>`;
+    const p = doc.pages[i]; $("#paper").value = p.paper; $("#paperColor").value = p.color;
+  }
+
+  // ---------------- السجل (تراجع/إعادة) ----------------
+  function stack(map, id) { if (!map.has(id)) map.set(id, []); return map.get(id); }
+  function remember(i) {
+    const page = doc.pages[i], s = stack(undo, page.id);
+    s.push(JSON.stringify(page.items)); if (s.length > 60) s.shift();
+    stack(redo, page.id).length = 0;
+  }
+  function changed(i) { render(i); save(); }
+
+  // ---------------- التفاعل بالرسم ----------------
+  let act = null;   // العملية الجارية
+  function pos(canvas, e, page) {
+    const r = canvas.getBoundingClientRect();
+    let x = (e.clientX - r.left) * page.w / r.width, y = (e.clientY - r.top) * page.h / r.height;
+    return [x, y, e.pressure && e.pointerType === "pen" ? e.pressure : 0.5];
+  }
+  const snapPt = (p) => snap ? [Math.round(p[0] / SNAP) * SNAP, Math.round(p[1] / SNAP) * SNAP, p[2]] : p;
+  function snapAngle(a, b) {
+    if (!snap) return b;
+    const len = dist(a, b), ang = Math.round(Math.atan2(b[1] - a[1], b[0] - a[0]) / (Math.PI / 12)) * (Math.PI / 12);
+    return [a[0] + Math.cos(ang) * len, a[1] + Math.sin(ang) * len, b[2]];
+  }
+  function clearLive(i) { const p = doc.pages[i]; views[i].live.getContext("2d").clearRect(0, 0, p.w, p.h); }
+  function preview(i, it) { clearLive(i); drawItem(views[i].live.getContext("2d"), it, true); }
+
+  function attach(canvas, i) {
+    canvas.addEventListener("pointerdown", (e) => {
+      if (penOnly && e.pointerType === "touch") return;
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      e.preventDefault();
+      if (current !== i) setCurrent(i);
+      const page = doc.pages[i], p = pos(canvas, e, page);
+      if (tool === "text") { openText(e, i, p); return; }
+      if (tool === "tri" || tool === "angle") { clickShape(i, snapPt(p)); return; }
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* بعض الأجهزة لا تدعم الالتقاط */ }
+      const w = tool === "hl" ? width * 4 + 10 : width;
+      if (tool === "pen" || tool === "hl") act = { i, it: { t: tool, c: color, w, p: [p] } };
+      else if (tool === "eraser") { act = { i, erased: false }; eraseAt(i, p); }
+      else {
+        const s = snapPt(p);
+        act = { i, start: s, it: shapeFrom(tool, s, s) };
+      }
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      const page = doc.pages[i], p = pos(canvas, e, page);
+      if (pending && pending.i === i) { movePending(p); return; }
+      if (!act || act.i !== i) return;
+      if (act.it && (act.it.t === "pen" || act.it.t === "hl")) {
+        const pts = act.it.p, last = pts[pts.length - 1];
+        if (dist(last, p) < 1.5) return;
+        pts.push([Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10, Math.round(p[2] * 100) / 100]);
+        preview(i, act.it);
+      } else if (tool === "eraser") eraseAt(i, p);
+      else if (act.start) {
+        let q = snapPt(p);
+        if (tool === "line" || tool === "arrow") q = snapAngle(act.start, q);
+        act.it = shapeFrom(tool, act.start, q); preview(i, act.it);
+      }
+    });
+    const finish = () => {
+      if (!act || act.i !== i) return;
+      const page = doc.pages[i];
+      if (act.it && !(act.it.t === "circle" && act.it.r < 3) && !(act.it.t === "rect" && Math.abs(act.it.wd) < 3)) {
+        if (!keepMeasures) delete act.it.m; else if (act.it.t !== "pen" && act.it.t !== "hl") act.it.m = true;
+        remember(i); page.items.push(act.it); changed(i);
+      }
+      if (act.erased) save();
+      clearLive(i); act = null;
+    };
+    canvas.addEventListener("pointerup", finish);
+    canvas.addEventListener("pointercancel", finish);
+  }
+  function shapeFrom(t, a, b) {
+    const base = { t, c: color, w: width };
+    if (t === "line" || t === "arrow") return { ...base, x1: a[0], y1: a[1], x2: b[0], y2: b[1] };
+    if (t === "rect") return { ...base, x: a[0], y: a[1], wd: b[0] - a[0], ht: b[1] - a[1] };
+    if (t === "circle") return { ...base, cx: a[0], cy: a[1], r: dist(a, b), ang: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+    return base;
+  }
+
+  // المثلث والمنقلة بالنقرات
+  let pending = null;
+  function clickShape(i, p) {
+    const pt = [p[0], p[1]];
+    if (!pending || pending.i !== i) {
+      pending = { i, it: tool === "tri" ? { t: "tri", c: color, w: width, pts: [pt] } : { t: "angle", c: color, w: width, v: pt } };
+      preview(i, pending.it); return;
+    }
+    const it = pending.it;
+    if (it.t === "tri") {
+      it.pts = it.pts.filter((q) => !q.ghost); it.pts.push(pt);
+      if (it.pts.length === 3) return commitPending();
+    } else if (!it.a) it.a = pt;
+    else { it.b = pt; return commitPending(); }
+    preview(i, it);
+  }
+  function movePending(p) {
+    const it = pending.it, q = [p[0], p[1]], s = snapPt(q);
+    if (it.t === "tri") {
+      const fixed = it.pts.filter((x) => !x.ghost), ghost = [s[0], s[1]]; ghost.ghost = true;
+      preview(pending.i, { ...it, pts: [...fixed, ghost] });
+    } else if (!it.a) preview(pending.i, { ...it, a: [s[0], s[1]] });
+    else preview(pending.i, { ...it, b: [s[0], s[1]] });
+  }
+  function commitPending() {
+    const { i, it } = pending; pending = null;
+    if (keepMeasures || it.t === "angle") it.m = true;
+    remember(i); doc.pages[i].items.push(it); clearLive(i); changed(i);
+  }
+
+  // الممحاة: تمسح العنصر كاملاً عند لمسه
+  function segDist(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy;
+    let t = l ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l : 0; t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+  }
+  function hit(it, p, r) {
+    const near = (a, b) => segDist(p, a, b) <= r + (it.w || 0) / 2;
+    switch (it.t) {
+      case "pen": case "hl":
+        if (it.p.length === 1) return dist(p, it.p[0]) <= r + it.w;
+        for (let k = 1; k < it.p.length; k++) if (near(it.p[k - 1], it.p[k])) return true; return false;
+      case "line": case "arrow": return near([it.x1, it.y1], [it.x2, it.y2]);
+      case "rect": {
+        const a = [it.x, it.y], b = [it.x + it.wd, it.y], c = [it.x + it.wd, it.y + it.ht], d = [it.x, it.y + it.ht];
+        return near(a, b) || near(b, c) || near(c, d) || near(d, a);
+      }
+      case "circle": return Math.abs(dist(p, [it.cx, it.cy]) - it.r) <= r + it.w;
+      case "tri": return it.pts.some((a, k) => near(a, it.pts[(k + 1) % it.pts.length]));
+      case "angle": return near(it.v, it.a) || (it.b && near(it.v, it.b));
+      case "text": {
+        const lines = it.txt.split("\n"), wdt = Math.max(...lines.map((l) => l.length)) * it.s * 0.55;
+        return p[0] <= it.x + r && p[0] >= it.x - wdt - r && p[1] >= it.y - r && p[1] <= it.y + lines.length * it.s * 1.35 + r;
+      }
+    }
+    return false;
+  }
+  function eraseAt(i, p) {
+    const page = doc.pages[i], r = width * 3 + 12;
+    const keep = page.items.filter((it) => !hit(it, p, r));
+    if (keep.length !== page.items.length) {
+      if (!act.erased) { remember(i); act.erased = true; }
+      page.items = keep; render(i);
+    }
+    const ctx = views[i].live.getContext("2d"); clearLive(i);
+    ctx.save(); ctx.strokeStyle = "rgba(139,92,246,.8)"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+
+  // النص
+  let textAt = null;
+  function openText(e, i, p) {
+    const box = $("#textbox"), size = 22 + width * 2;
+    textAt = { i, x: p[0], y: p[1], s: size * 1.8 };
+    box.style.display = "block"; box.style.left = (e.clientX - 220) + "px"; box.style.top = (e.clientY - 10) + "px";
+    box.style.width = "240px"; box.style.fontSize = size + "px"; box.style.color = color; box.value = "";
+    setTimeout(() => box.focus(), 0);
+  }
+  function commitText() {
+    const box = $("#textbox"), txt = box.value.trim(); box.style.display = "none";
+    if (textAt && txt) {
+      const { i, x, y, s } = textAt;
+      remember(i); doc.pages[i].items.push({ t: "text", c: color, s, x, y, txt }); changed(i);
+    }
+    textAt = null;
+  }
+  $("#textbox").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
+    if (e.key === "Escape") { $("#textbox").style.display = "none"; textAt = null; }
+  });
+  $("#textbox").addEventListener("blur", () => { if (textAt) commitText(); });
+
+  // ---------------- الأزرار ----------------
+  document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => {
+    tool = b.dataset.tool; pending = null; views.forEach((_, k) => clearLive(k));
+    document.querySelectorAll("[data-tool]").forEach((x) => x.classList.toggle("on", x === b));
+    $("#hint").textContent = HINTS[tool] || "";
+  }));
+  const colorsBox = $("#colors");
+  COLORS.forEach((c, k) => {
+    const s = document.createElement("button"); s.className = "sw" + (k === 0 ? " on" : ""); s.style.background = c; s.title = c;
+    s.addEventListener("click", () => { color = c; document.querySelectorAll(".sw").forEach((x) => x.classList.toggle("on", x === s)); });
+    colorsBox.appendChild(s);
+  });
+  const custom = document.createElement("input"); custom.type = "color"; custom.value = "#ec4899"; custom.title = "لون مخصص";
+  custom.addEventListener("input", () => { color = custom.value; document.querySelectorAll(".sw").forEach((x) => x.classList.remove("on")); });
+  colorsBox.appendChild(custom);
+  $("#width").addEventListener("input", (e) => { width = +e.target.value; });
+  $("#snapBtn").addEventListener("click", (e) => { snap = !snap; e.currentTarget.classList.toggle("on", snap); toast(snap ? "🧲 المغناطيس مفعّل: النقاط تلتصق بشبكة 5 ملم" : "🧲 المغناطيس متوقف"); });
+  $("#measureBtn").addEventListener("click", (e) => { keepMeasures = !keepMeasures; e.currentTarget.classList.toggle("on", keepMeasures); toast(keepMeasures ? "🔢 ستبقى القياسات ظاهرة على الأشكال الجديدة" : "🔢 القياسات تظهر أثناء الرسم فقط"); });
+  $("#penOnly").addEventListener("click", (e) => { penOnly = !penOnly; e.currentTarget.classList.toggle("on", penOnly); document.body.classList.toggle("penonly", penOnly); toast(penOnly ? "✍️ الرسم بالقلم فقط — الإصبع للتمرير" : "✍️ الرسم بالإصبع والقلم"); });
+  $("#undoBtn").addEventListener("click", doUndo);
+  $("#redoBtn").addEventListener("click", doRedo);
+  function doUndo() {
+    const page = doc.pages[current], s = stack(undo, page.id); if (!s.length) return;
+    stack(redo, page.id).push(JSON.stringify(page.items)); page.items = JSON.parse(s.pop()); changed(current);
+  }
+  function doRedo() {
+    const page = doc.pages[current], s = stack(redo, page.id); if (!s.length) return;
+    stack(undo, page.id).push(JSON.stringify(page.items)); page.items = JSON.parse(s.pop()); changed(current);
+  }
+  $("#clearBtn").addEventListener("click", () => {
+    if (!doc.pages[current].items.length || !confirm("مسح كل ما في الصفحة الحالية؟")) return;
+    remember(current); doc.pages[current].items = []; changed(current);
+  });
+  $("#paper").addEventListener("change", (e) => { doc.pages[current].paper = e.target.value; repaint(current); });
+  $("#paperColor").addEventListener("change", (e) => { doc.pages[current].color = e.target.value; repaint(current); });
+  function repaint(i) { drawPaper(views[i].bg.getContext("2d"), doc.pages[i]); render(i); save(); }
+  $("#addPage").addEventListener("click", () => {
+    const cur = doc.pages[current];
+    doc.pages.splice(current + 1, 0, newPage(cur.paper, cur.color, $("#orient").value));
+    current += 1; build(); save();
+    views[current].el.scrollIntoView({ behavior: "smooth", block: "start" });
+    toast(`➕ أُضيفت الصفحة ${current + 1}`);
+  });
+  $("#delPage").addEventListener("click", () => {
+    if (doc.pages.length === 1) { toast("لا يمكن حذف الصفحة الوحيدة"); return; }
+    if (!confirm(`حذف الصفحة ${current + 1}؟`)) return;
+    doc.pages.splice(current, 1); current = Math.max(0, current - 1); build(); save();
+  });
+  $("#zoom").addEventListener("change", (e) => { zoom = +e.target.value; layout(); });
+  window.addEventListener("resize", layout);
+  document.addEventListener("keydown", (e) => {
+    if (e.target.id === "textbox") return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); }
+    if (e.key === "Escape" && pending) { pending = null; views.forEach((_, k) => clearLive(k)); }
+    else if (e.key === "Escape" && expanded && !document.fullscreenElement) setExpanded(false);
+  });
+  // تحديد الصفحة الحالية أثناء التمرير
+  $("#scroller").addEventListener("scroll", () => {
+    const mid = $("#scroller").getBoundingClientRect().top + $("#scroller").clientHeight / 3;
+    let best = current, bestD = Infinity;
+    views.forEach((v, k) => { const r = v.el.getBoundingClientRect(); const d = Math.abs(r.top - mid); if (r.top <= mid && r.bottom >= mid) { best = k; bestD = 0; } else if (d < bestD && bestD) { best = k; bestD = d; } });
+    if (best !== current) setCurrent(best);
+  });
+
+  // ---------------- ملء الشاشة ----------------
+  // الدفتر يُكبَّر أولاً ليغطي النافذة كلها (يعمل في كل المتصفحات وحتى الآيفون)،
+  // ثم نطلب ملء الشاشة الحقيقي إن سمح به المتصفح.
+  const hostFrame = (() => { try { return window.frameElement; } catch (e) { return null; } })();
+  let expanded = false, frameStyle = "", hostOverflow = "";
+  function setExpanded(on) {
+    if (on === expanded) return;
+    expanded = on;
+    if (hostFrame) {
+      const hostBody = hostFrame.ownerDocument.body;
+      if (on) {
+        frameStyle = hostFrame.getAttribute("style") || ""; hostOverflow = hostBody.style.overflow;
+        hostFrame.style.cssText = frameStyle + ";position:fixed;inset:0;width:100vw;height:100vh;max-width:none;z-index:1000000;border:0;background:#0b1020";
+        hostBody.style.overflow = "hidden";
+      } else {
+        hostFrame.setAttribute("style", frameStyle); hostBody.style.overflow = hostOverflow;
+      }
+    }
+    $("#fsBtn").innerHTML = on ? "🗗 <small>خروج</small>" : "⛶ <small>ملء الشاشة</small>";
+    setTimeout(layout, 120);
+  }
+  $("#fsBtn").addEventListener("click", () => {
+    if (expanded) {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      setExpanded(false);
+      return;
+    }
+    setExpanded(true);
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  });
+  // الخروج من ملء الشاشة الحقيقي (بزر Esc) يعيد الدفتر لحجمه أيضاً
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) setExpanded(false); else setTimeout(layout, 120); });
+
+  // ---------------- التصدير: PDF و PNG ----------------
+  function composePage(i) {
+    const page = doc.pages[i], c = document.createElement("canvas");
+    c.width = page.w; c.height = page.h;
+    const ctx = c.getContext("2d"); drawPaper(ctx, page); page.items.forEach((it) => drawItem(ctx, it, false));
+    return c;
+  }
+  function b64ToBytes(b64) { const s = atob(b64), out = new Uint8Array(s.length); for (let k = 0; k < s.length; k++) out[k] = s.charCodeAt(k); return out; }
+  function buildPdf() {
+    // كاتب PDF صغير: كل صفحة صورة JPEG بحجم A4 (لا يحتاج أي مكتبة خارجية)
+    const enc = new TextEncoder(), parts = [], offsets = []; let size = 0;
+    const push = (x) => { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); size += b.length; };
+    const obj = (n, body) => { offsets[n] = size; push(`${n} 0 obj\n`); body(); push("\nendobj\n"); };
+    const n = doc.pages.length, kids = [];
+    push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+    for (let k = 0; k < n; k++) kids.push(`${3 + k * 3} 0 R`);
+    obj(1, () => push("<< /Type /Catalog /Pages 2 0 R >>"));
+    obj(2, () => push(`<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${n} >>`));
+    doc.pages.forEach((page, k) => {
+      const pageObj = 3 + k * 3, imgObj = pageObj + 1, contentObj = pageObj + 2;
+      const W = page.w >= page.h ? 841.89 : 595.28, H = page.w >= page.h ? 595.28 : 841.89;
+      const jpg = b64ToBytes(composePage(k).toDataURL("image/jpeg", 0.9).split(",")[1]);
+      const content = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+      obj(pageObj, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${imgObj} 0 R >> >> /Contents ${contentObj} 0 R >>`));
+      obj(imgObj, () => { push(`<< /Type /XObject /Subtype /Image /Width ${page.w} /Height ${page.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); push(jpg); push("\nendstream"); });
+      obj(contentObj, () => push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+    });
+    const total = 3 + n * 3, xref = size;
+    let table = `xref\n0 ${total}\n0000000000 65535 f \n`;
+    for (let k = 1; k < total; k++) table += String(offsets[k]).padStart(10, "0") + " 00000 n \n";
+    push(table); push(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+    return new Blob(parts, { type: "application/pdf" });
+  }
+  function download(blob, name) {
+    const url = URL.createObjectURL(blob);
+    let host = document;
+    try { if (window.parent && window.parent.document) host = window.parent.document; } catch (e) { host = document; }
+    const a = host.createElement("a"); a.href = url; a.download = name; host.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+  }
+  const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+  $("#pdfBtn").addEventListener("click", () => {
+    toast("⏳ جارٍ تجهيز ملف PDF…");
+    setTimeout(() => {
+      try { download(buildPdf(), `vita_notes_${stamp()}.pdf`); toast(`✅ حُفظ ملف PDF (${doc.pages.length} صفحات)`); }
+      catch (e) { toast("تعذّر إنشاء PDF: " + e.message); }
+    }, 50);
+  });
+  $("#pngBtn").addEventListener("click", () => {
+    composePage(current).toBlob((b) => { download(b, `vita_page_${current + 1}_${stamp()}.png`); toast("✅ حُفظت الصفحة كصورة"); }, "image/png");
+  });
+
+  // ---------------- البدء ----------------
+  window.vitaNotes = { doc: () => doc, buildPdf };   // للاختبار
+  $("#hint").textContent = HINTS.pen;
+  build();
+  $("#saved").textContent = "✓ يُحفظ تلقائياً في هذا المتصفح";
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => doc.pages.forEach((_, k) => render(k)));
+})();
+</script>
+</body>
+</html>
