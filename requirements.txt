@@ -1,0 +1,12 @@
+# Versions tested with Vita (pinned so the cloud server installs the same ones)
+streamlit==1.50.0
+requests==2.32.5
+pandas==2.3.3
+streamlit-drawable-canvas==0.9.3
+pypdf==6.21.1
+# Reading every file type + Arabic OCR for images and scanned PDFs
+pypdfium2==5.14.0
+openpyxl==3.1.5
+rapidocr==3.10.0
+onnxruntime>=1.19
+python-bidi==0.6.11
