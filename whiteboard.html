@@ -73,6 +73,32 @@
   .tb.off { opacity: .4; }
   #lockBtn.on { background: rgba(245,158,11,.22); border-color: rgba(245,158,11,.75); }
   #lockBtn.holding { background: rgba(239,68,68,.4); border-color: #ef4444; transition: background .7s; }
+
+  /* ---------- المسطرة والمنقلة الحقيقيتان ---------- */
+  #main { position: relative; }
+  #instLayer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 6; }
+  .inst { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .inst canvas.inst-body { position: absolute; left: 0; top: 0; pointer-events: auto; touch-action: none; cursor: grab;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,.28)); }
+  .inst-h { position: absolute; width: 34px; height: 34px; border-radius: 50%; padding: 0; display: grid; place-items: center;
+    border: 1px solid rgba(15,23,42,.35); background: rgba(255,255,255,.95); color: #0f172a; font: 700 16px Tajawal, Arial, sans-serif;
+    pointer-events: auto; touch-action: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .inst-h.rot { cursor: grab; }
+  .inst-h.wide { width: auto; padding: 0 12px; border-radius: 17px; font-size: 14px; white-space: nowrap; background: #f59e0b; color: #1f1300; border-color: #b45309; }
+  .inst-read { position: absolute; pointer-events: none; background: rgba(15,23,42,.88); color: #fff; font: 800 14px Tajawal, Arial, sans-serif;
+    padding: 2px 10px; border-radius: 9px; white-space: nowrap; direction: rtl; }
+  .prot-knob { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; padding: 0;
+    background: #f59e0b; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); pointer-events: auto; touch-action: none; cursor: grab; }
+
+  /* ---------- الصور ---------- */
+  .img-edit { position: absolute; z-index: 4; outline: 2px dashed #8b5cf6; outline-offset: 2px; touch-action: none; cursor: move; }
+  .img-edit img { width: 100%; height: 100%; display: block; pointer-events: none; -webkit-user-drag: none; }
+  .img-h { position: absolute; width: 26px; height: 26px; margin: -13px; border-radius: 50%; background: #fff; border: 3px solid #8b5cf6; touch-action: none; }
+  .img-h.nw { left: 0; top: 0; cursor: nwse-resize; } .img-h.se { right: 0; bottom: 0; cursor: nwse-resize; }
+  .img-h.ne { right: 0; top: 0; cursor: nesw-resize; } .img-h.sw { left: 0; bottom: 0; cursor: nesw-resize; }
+  .img-bar { position: absolute; top: -54px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 4px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .img-edit.bar-below .img-bar { top: auto; bottom: -54px; }
 </style>
 </head>
 <body>
@@ -85,14 +111,20 @@
       <button class="tb" data-tool="text" title="كتابة نص">🔤 <small>نص</small></button>
     </div>
     <div class="group" id="geo">
-      <button class="tb" data-tool="line" title="مسطرة: خط مستقيم مع طوله">📏 <small>مسطرة</small></button>
+      <button class="tb" data-tool="line" title="خط مستقيم مع طوله وزاويته">╱ <small>خط</small></button>
       <button class="tb" data-tool="arrow" title="سهم">↗️</button>
       <button class="tb" data-tool="rect" title="مستطيل مع أبعاده">▭</button>
       <button class="tb" data-tool="circle" title="دائرة: اسحب من المركز، ويظهر القطر أثناء الرسم">⭕ <small>دائرة</small></button>
       <button class="tb" data-tool="tri" title="مثلث: ثلاث نقرات، مع الأضلاع والزوايا">△ <small>مثلث</small></button>
-      <button class="tb" data-tool="angle" title="منقلة: الرأس ثم ضلعا الزاوية">📐 <small>منقلة</small></button>
+      <button class="tb" data-tool="angle" title="زاوية بالنقرات: الرأس ثم ضلعا الزاوية">∠ <small>زاوية</small></button>
       <button class="tb" id="snapBtn" title="مغناطيس الشبكة: النقاط تلتصق بشبكة 5 ملم">🧲</button>
       <button class="tb" id="measureBtn" title="إبقاء القياسات ظاهرة على الأشكال بعد رسمها">🔢</button>
+    </div>
+    <div class="group" id="instruments">
+      <button class="tb" id="rulerBtn" title="مسطرة حقيقية: حرّكها ودوّرها، وارسم على حافتها خطاً مستقيماً بطوله">📏 <small>مسطرة</small></button>
+      <button class="tb" id="protBtn" title="منقلة حقيقية: حرّكها ودوّرها، واسحب النقطة البرتقالية لقياس الزاوية">📐 <small>منقلة</small></button>
+      <button class="tb" id="imgBtn" title="إضافة صورة إلى الصفحة">🏞️ <small>صورة</small></button>
+      <button class="tb" data-tool="move" title="تحريك الصور وتغيير حجمها وحذفها">✋ <small>تحريك</small></button>
     </div>
     <div class="group" id="colors"></div>
     <div class="group"><span class="lbl">السُّمك</span><input type="range" id="width" min="1" max="30" value="4"></div>
@@ -138,7 +170,24 @@
   <div id="main">
     <div id="thumbs"></div>
     <div id="scroller"><div id="pages"></div></div>
+    <div id="instLayer">
+      <div class="inst" id="ruler" hidden>
+        <canvas class="inst-body"></canvas>
+        <div class="inst-read"></div>
+        <button class="inst-h close" title="إخفاء المسطرة">✕</button>
+        <button class="inst-h rot" title="اسحب لتدوير المسطرة">↻</button>
+      </div>
+      <div class="inst" id="prot" hidden>
+        <canvas class="inst-body"></canvas>
+        <button class="prot-knob" title="اسحب لقياس الزاوية"></button>
+        <div class="inst-read"></div>
+        <button class="inst-h close" title="إخفاء المنقلة">✕</button>
+        <button class="inst-h wide draw" title="ارسم الزاوية المقاسة على الصفحة">✏️ ارسم الزاوية</button>
+        <button class="inst-h rot" title="اسحب لتدوير المنقلة">↻</button>
+      </div>
+    </div>
   </div>
+  <input type="file" id="imgInput" accept="image/*" hidden>
   <div id="status"><span id="pageInfo"></span><span id="hint"></span><span id="saved"></span></div>
 </div>
 <textarea id="textbox" placeholder="اكتب هنا… (Enter للحفظ، Shift+Enter لسطر جديد)"></textarea>
@@ -164,10 +213,14 @@
     circle: "اسحب من مركز الدائرة إلى محيطها — يظهر القطر ونصف القطر أثناء الرسم",
     tri: "انقر ثلاث نقاط لرسم مثلث — تظهر الأضلاع والزوايا",
     angle: "انقر رأس الزاوية، ثم نقطة على الضلع الأول، ثم الضلع الثاني",
+    move: "اضغط على صورة لتحريكها أو تكبيرها من الزوايا أو حذفها",
   };
 
   // ---------------- الحالة ----------------
   let doc = load() || { pages: [newPage("lined", "white", "p")] };
+  if (!doc.images) doc.images = {};             // الصور: رقمها ← بياناتها (العناصر تشير للرقم فقط)
+  const instruments = [];                       // المسطرة والمنقلة
+  let editing = null;                           // الصورة التي يجري تحريكها
   let current = 0, tool = "pen", color = COLORS[0], width = 4;
   let snap = false, keepMeasures = false, penOnly = false, zoom = 1;
   const undo = new Map(), redo = new Map();   // لكل صفحة
@@ -189,10 +242,12 @@
     $("#saved").textContent = "⏳ جارٍ الحفظ…";
     saveTimer = setTimeout(() => {
       try {
+        pruneImages();
         localStorage.setItem(STORE_KEY, JSON.stringify(doc));
         $("#saved").textContent = "✓ محفوظ تلقائياً";
       } catch (e) {
-        $("#saved").textContent = "⚠️ الذاكرة ممتلئة — احفظ PDF واحذف بعض الصفحات";
+        $("#saved").textContent = "⚠️ الذاكرة ممتلئة — احفظ PDF واحذف بعض الصفحات أو الصور";
+        toast("⚠️ ذاكرة المتصفح ممتلئة: احذف بعض الصور أو الصفحات حتى يُحفظ عملك");
       }
     }, 500);
   }
@@ -327,6 +382,11 @@
         }
         break;
       }
+      case "img": {
+        const im = imageFor(it.id);
+        if (im.complete && im.naturalWidth) ctx.drawImage(im, it.x, it.y, it.wd, it.ht);
+        break;
+      }
       case "text": {
         ctx.font = `600 ${it.s}px Tajawal, Arial, sans-serif`;
         ctx.direction = "rtl"; ctx.textAlign = "right"; ctx.textBaseline = "top";
@@ -379,6 +439,7 @@
 
   // ---------------- الصفحات في الواجهة ----------------
   function build() {
+    if (editing) finishEdit();
     const box = $("#pages"); box.innerHTML = ""; views.length = 0;
     const thumbs = $("#thumbs"); thumbs.innerHTML = "";
     doc.pages.forEach((page, i) => {
@@ -408,11 +469,17 @@
       views[i].el.style.width = w + "px";
       views[i].el.style.height = (w * page.h / page.w) + "px";
     });
+    syncInstruments();
+  }
+  // الصور تُرسم أولاً حتى تبقى الكتابة فوقها
+  function drawAll(ctx, items, skip) {
+    items.forEach((it) => { if (it.t === "img" && it !== skip) drawItem(ctx, it, false); });
+    items.forEach((it) => { if (it.t !== "img") drawItem(ctx, it, false); });
   }
   function render(i) {
     const page = doc.pages[i], v = views[i]; if (!v) return;
     const ctx = v.ink.getContext("2d"); ctx.clearRect(0, 0, page.w, page.h);
-    page.items.forEach((it) => drawItem(ctx, it, false));
+    drawAll(ctx, page.items, editing && editing.i === i ? editing.it : null);
     const t = v.th.getContext("2d");
     t.drawImage(v.bg, 0, 0, v.th.width, v.th.height); t.drawImage(v.ink, 0, 0, v.th.width, v.th.height);
   }
@@ -421,6 +488,7 @@
     views.forEach((v, k) => { v.el.classList.toggle("on", k === i); v.th.classList.toggle("on", k === i); });
     $("#pageInfo").innerHTML = `صفحة <b>${i + 1}</b> من <b>${doc.pages.length}</b>`;
     const p = doc.pages[i]; $("#paper").value = p.paper; $("#paperColor").value = p.color;
+    syncInstruments();
   }
 
   // ---------------- السجل (تراجع/إعادة) ----------------
@@ -453,11 +521,17 @@
       if (penOnly && e.pointerType === "touch") return;
       if (e.button !== 0 && e.pointerType === "mouse") return;
       e.preventDefault();
+      if (editing) { finishEdit(); return; }          // النقر خارج الصورة يثبّتها
       if (current !== i) setCurrent(i);
       const page = doc.pages[i], p = pos(canvas, e, page);
       if (tool === "text") { openText(e, i, p); return; }
       if (tool === "tri" || tool === "angle") { clickShape(i, snapPt(p)); return; }
+      if (tool === "move") { pickImage(i, p); return; }
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* بعض الأجهزة لا تدعم الالتقاط */ }
+      if (tool === "pen" || tool === "hl") {           // قرب حافة المسطرة: خط مستقيم على الحافة
+        const edge = rulerEdgeAt(e.clientX, e.clientY, false);
+        if (edge && startRuled(e, edge)) return;
+      }
       const w = tool === "hl" ? width * 4 + 10 : width;
       if (tool === "pen" || tool === "hl") act = { i, it: { t: tool, c: color, w, p: [p] } };
       else if (tool === "eraser") { act = { i, erased: false }; eraseAt(i, p); }
@@ -469,7 +543,7 @@
     canvas.addEventListener("pointermove", (e) => {
       const page = doc.pages[i], p = pos(canvas, e, page);
       if (pending && pending.i === i) { movePending(p); return; }
-      if (!act || act.i !== i) return;
+      if (!act || act.i !== i || act.ruled) return;
       if (act.it && (act.it.t === "pen" || act.it.t === "hl")) {
         const pts = act.it.p, last = pts[pts.length - 1];
         if (dist(last, p) < 1.5) return;
@@ -482,18 +556,22 @@
         act.it = shapeFrom(tool, act.start, q); preview(i, act.it);
       }
     });
-    const finish = () => {
-      if (!act || act.i !== i) return;
-      const page = doc.pages[i];
-      if (act.it && !(act.it.t === "circle" && act.it.r < 3) && !(act.it.t === "rect" && Math.abs(act.it.wd) < 3)) {
-        if (!keepMeasures) delete act.it.m; else if (act.it.t !== "pen" && act.it.t !== "hl") act.it.m = true;
-        remember(i); page.items.push(act.it); changed(i);
-      }
-      if (act.erased) save();
-      clearLive(i); act = null;
-    };
+    const finish = () => { if (act && act.i === i) finishAct(); };
     canvas.addEventListener("pointerup", finish);
     canvas.addEventListener("pointercancel", finish);
+  }
+  function finishAct() {
+    const i = act.i, page = doc.pages[i], it = act.it;
+    const tiny = it && ((it.t === "circle" && it.r < 3) || (it.t === "rect" && Math.abs(it.wd) < 3)
+      || (it.t === "line" && Math.hypot(it.x2 - it.x1, it.y2 - it.y1) < 3));
+    if (it && !tiny) {
+      if (!keepMeasures) delete it.m; else if (it.t !== "pen" && it.t !== "hl") it.m = true;
+      remember(i); page.items.push(it); changed(i);
+    }
+    if (act.erased) save();
+    const wasRuled = !!act.ruled;
+    clearLive(i); act = null;
+    if (wasRuled) ruler.onMove();
   }
   function shapeFrom(t, a, b) {
     const base = { t, c: color, w: width };
@@ -597,6 +675,7 @@
 
   // ---------------- الأزرار ----------------
   document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => {
+    if (editing) finishEdit();
     tool = b.dataset.tool; pending = null; views.forEach((_, k) => clearLive(k));
     document.querySelectorAll("[data-tool]").forEach((x) => x.classList.toggle("on", x === b));
     $("#hint").textContent = HINTS[tool] || "";
@@ -617,10 +696,12 @@
   $("#undoBtn").addEventListener("click", doUndo);
   $("#redoBtn").addEventListener("click", doRedo);
   function doUndo() {
+    if (editing) finishEdit();
     const page = doc.pages[current], s = stack(undo, page.id); if (!s.length) return;
     stack(redo, page.id).push(JSON.stringify(page.items)); page.items = JSON.parse(s.pop()); changed(current);
   }
   function doRedo() {
+    if (editing) finishEdit();
     const page = doc.pages[current], s = stack(redo, page.id); if (!s.length) return;
     stack(undo, page.id).push(JSON.stringify(page.items)); page.items = JSON.parse(s.pop()); changed(current);
   }
@@ -647,6 +728,8 @@
   window.addEventListener("resize", layout);
   document.addEventListener("keydown", (e) => {
     if (e.target.id === "textbox") return;
+    if (editing && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); deleteEditing(); return; }
+    if (editing && (e.key === "Escape" || e.key === "Enter")) { finishEdit(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); }
     if (e.key === "Escape" && pending) { pending = null; views.forEach((_, k) => clearLive(k)); }
@@ -729,11 +812,377 @@
     else setTimeout(layout, 120);
   });
 
+  // ---------------- المسطرة والمنقلة الحقيقيتان ----------------
+  // أدوات فوق الدفتر بمقياس حقيقي (1 سم على المسطرة = 1 سم على الورقة)، تتحرك وتدور ولا تظهر في PDF.
+  const layer = $("#instLayer"), R2D = 180 / Math.PI;
+  const rotv = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
+  const shownDeg = (ang) => ((Math.round(-ang * R2D) % 360) + 360) % 360;   // عكس عقارب الساعة موجب كما في الرياضيات
+  function layerPt(e) { const r = layer.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  function screenPPC() {   // بكسلات الشاشة في السنتيمتر الواحد للصفحة الحالية
+    const v = views[current], page = doc.pages[current];
+    return v && v.el.clientWidth ? PX_PER_CM * v.el.clientWidth / page.w : 30;
+  }
+  function sizeCanvas(c, w, h, draw) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.width = w + "px"; c.style.height = h + "px";
+    const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h); draw(ctx);
+  }
+  function setPos(el, x, y) { el.style.left = x + "px"; el.style.top = y + "px"; }
+  function syncInstruments() {
+    instruments.forEach((inst) => { if (inst.shown && Math.abs(screenPPC() - inst.ppc) > inst.ppc * 0.01) inst.build(); });
+  }
+  function pageAt(x, y) {
+    return views.findIndex((v) => { const r = v.live.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
+  }
+
+  function makeInstrument(id, btnId, hint, draw) {
+    const el = $("#" + id), body = el.querySelector(".inst-body"), read = el.querySelector(".inst-read");
+    const inst = { el, body, read, cx: null, cy: null, ang: 0, pivot: [0, 0], w: 0, h: 0, ppc: 0, shown: false, onMove: () => {} };
+    inst.toLayer = (p) => { const d = rotv([p[0] - inst.pivot[0], p[1] - inst.pivot[1]], inst.ang); return [inst.cx + d[0], inst.cy + d[1]]; };
+    inst.toLocal = (q) => { const d = rotv([q[0] - inst.cx, q[1] - inst.cy], -inst.ang); return [inst.pivot[0] + d[0], inst.pivot[1] + d[1]]; };
+    inst.place = () => {
+      el.style.transformOrigin = `${inst.pivot[0]}px ${inst.pivot[1]}px`;
+      el.style.transform = `translate(${inst.cx - inst.pivot[0]}px, ${inst.cy - inst.pivot[1]}px) rotate(${inst.ang}rad)`;
+      read.style.transform = `translate(-50%, -50%) rotate(${-inst.ang}rad)`;   // القراءة تبقى معتدلة
+    };
+    inst.build = () => {
+      inst.ppc = screenPPC(); draw(inst);
+      el.style.width = inst.w + "px"; el.style.height = inst.h + "px";
+      inst.cx = Math.min(Math.max(inst.cx, 30), Math.max(30, layer.clientWidth - 30));
+      inst.cy = Math.min(Math.max(inst.cy, 30), Math.max(30, layer.clientHeight - 30));
+      inst.place(); inst.onMove();
+    };
+    inst.toggle = (on) => {
+      inst.shown = on; el.hidden = !on; $("#" + btnId).classList.toggle("on", on);
+      if (!on) return;
+      if (inst.cx === null) { inst.cx = layer.clientWidth / 2; inst.cy = layer.clientHeight * 0.45; toast(hint); }
+      inst.build();
+    };
+    $("#" + btnId).addEventListener("click", () => inst.toggle(!inst.shown));
+    el.querySelector(".close").addEventListener("click", () => inst.toggle(false));
+
+    // السحب بإصبع أو قلم أو فأرة يحرّكها، وبإصبعين يحرّكها ويدوّرها معاً
+    const pts = new Map(); let last = null;
+    const gesture = () => {
+      const l = [...pts.values()].slice(0, 2);
+      return l.length === 1 ? { m: l[0], a: 0, n: 1 }
+        : { m: [(l[0][0] + l[1][0]) / 2, (l[0][1] + l[1][1]) / 2], a: Math.atan2(l[1][1] - l[0][1], l[1][0] - l[0][0]), n: 2 };
+    };
+    body.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (inst.onBodyDown && inst.onBodyDown(e)) return;
+      try { body.setPointerCapture(e.pointerId); } catch (err) { /* بعض الأجهزة لا تدعم الالتقاط */ }
+      pts.set(e.pointerId, layerPt(e)); last = gesture(); body.style.cursor = "grabbing";
+    });
+    body.addEventListener("pointermove", (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, layerPt(e));
+      const g = gesture();
+      if (last && last.n === g.n) {
+        let da = g.n === 2 ? g.a - last.a : 0;
+        if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI;
+        const d = rotv([inst.cx - last.m[0], inst.cy - last.m[1]], da);
+        inst.cx = g.m[0] + d[0]; inst.cy = g.m[1] + d[1]; inst.ang += da;
+        inst.place(); inst.onMove(g.n === 2);
+      }
+      last = g;
+    });
+    const up = (e) => {
+      pts.delete(e.pointerId); last = pts.size ? gesture() : null;   // رفع إصبع واحد يكمل بالإصبع الباقي بدون قفزة
+      if (!pts.size) { body.style.cursor = ""; inst.onMove(); }
+    };
+    body.addEventListener("pointerup", up); body.addEventListener("pointercancel", up);
+
+    // زر التدوير: يلتصق بمضاعفات 15° (0، 15، 30، 45، 60، 90…)
+    const rh = el.querySelector(".rot"); let r0 = null;
+    rh.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      try { rh.setPointerCapture(e.pointerId); } catch (err) { /* */ }
+      const p = layerPt(e); r0 = Math.atan2(p[1] - inst.cy, p[0] - inst.cx) - inst.ang;
+    });
+    rh.addEventListener("pointermove", (e) => {
+      if (r0 === null) return;
+      const p = layerPt(e); let a = Math.atan2(p[1] - inst.cy, p[0] - inst.cx) - r0;
+      const deg = a * R2D, near = Math.round(deg / 15) * 15;
+      if (Math.abs(deg - near) < 3) a = near / R2D;
+      inst.ang = a; inst.place(); inst.onMove(true);
+    });
+    const rUp = () => { if (r0 !== null) { r0 = null; inst.onMove(); } };
+    rh.addEventListener("pointerup", rUp); rh.addEventListener("pointercancel", rUp);
+    instruments.push(inst);
+    return inst;
+  }
+
+  // المسطرة: 20 سم، تدريج بالمليمتر على الحافتين وأرقام السنتيمتر على الحافة العليا
+  const ruler = makeInstrument("ruler", "rulerBtn",
+    "📏 اسحب المسطرة لتحريكها، ودوّرها بزر ↻ أو بإصبعين. ارسم قرب حافتها ويطلع خط مستقيم بطوله",
+    (inst) => {
+      const ppc = inst.ppc, L = 20, pad = Math.round(ppc * 0.6);
+      Object.assign(inst, { L, pad, w: Math.round(L * ppc + pad * 2), h: Math.max(64, Math.round(ppc * 2.5)) });
+      inst.pivot = [inst.w / 2, inst.h / 2];
+      const { w, h } = inst;
+      sizeCanvas(inst.body, w, h, (ctx) => {
+        ctx.fillStyle = "rgba(219,234,254,.76)"; roundRect(ctx, 0.5, 0.5, w - 1, h - 1, 8); ctx.fill();
+        ctx.strokeStyle = "rgba(30,64,175,.6)"; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.strokeStyle = "#0f172a"; ctx.fillStyle = "#0f172a"; ctx.direction = "ltr";
+        ctx.font = `700 ${Math.max(10, Math.round(h * 0.16))}px Tajawal, Arial, sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        for (let k = 0; k <= L * 10; k++) {
+          const x = pad + k * ppc / 10, len = k % 10 === 0 ? h * 0.3 : k % 5 === 0 ? h * 0.2 : h * 0.12;
+          ctx.lineWidth = k % 10 === 0 ? 1.4 : 0.9;
+          line(ctx, x, 0, x, len); line(ctx, x, h, x, h - len * 0.55);
+          if (k % 10 === 0) ctx.fillText(String(k / 10), x, h * 0.3 + 2);
+        }
+      });
+      const hy = h - 40;
+      setPos(inst.el.querySelector(".close"), 8, hy);
+      setPos(inst.el.querySelector(".rot"), w - 42, hy);
+      setPos(inst.read, w / 2, h * 0.7);
+    });
+  ruler.onMove = () => { if (!(act && act.ruled)) ruler.read.textContent = `${shownDeg(ruler.ang) % 180}°`; };
+  // القلم على الحافة من داخل المسطرة يرسم بدل أن يحرّكها
+  ruler.onBodyDown = (e) => {
+    if (e.pointerType !== "pen" || (tool !== "pen" && tool !== "hl") || editing) return false;
+    const edge = rulerEdgeAt(e.clientX, e.clientY, true);
+    if (!edge || !startRuled(e, edge)) return false;
+    try { ruler.body.setPointerCapture(e.pointerId); } catch (err) { /* */ }
+    return true;
+  };
+  function rulerEdgeAt(x, y, inside) {
+    if (!ruler.shown) return null;
+    const lr = layer.getBoundingClientRect(), loc = ruler.toLocal([x - lr.left, y - lr.top]);
+    if (loc[0] < -14 || loc[0] > ruler.w + 14) return null;
+    for (const [d, yy, s] of [[-loc[1], 0, -1], [loc[1] - ruler.h, ruler.h, 1]]) {   // d موجب = خارج المسطرة
+      if (inside ? (d <= 0 && d >= -16) : (d >= -2 && d <= 28)) {
+        const o = ruler.toLayer([0, yy]);
+        return { o: [o[0] + lr.left, o[1] + lr.top], u: rotv([1, 0], ruler.ang), n: rotv([0, s], ruler.ang) };
+      }
+    }
+    return null;
+  }
+  function startRuled(e, edge) {
+    const i = pageAt(e.clientX, e.clientY); if (i < 0) return false;
+    if (current !== i) setCurrent(i);
+    const page = doc.pages[i], scale = views[i].live.getBoundingClientRect().width / page.w;
+    const w = tool === "hl" ? width * 4 + 10 : width, off = (w / 2) * scale + 1;   // الخط يلاصق الحافة من الخارج
+    edge.o = [edge.o[0] + edge.n[0] * off, edge.o[1] + edge.n[1] * off];
+    act = { i, ruled: edge, w };
+    act.start = ruledPoint(e); act.it = ruledItem(act.start, act.start);
+    preview(i, act.it);
+    return true;
+  }
+  function ruledPoint(e) {
+    const { o, u } = act.ruled, t = (e.clientX - o[0]) * u[0] + (e.clientY - o[1]) * u[1];
+    return pos(views[act.i].live, { clientX: o[0] + u[0] * t, clientY: o[1] + u[1] * t }, doc.pages[act.i]);
+  }
+  function ruledItem(a, b) {
+    const r = (v) => Math.round(v * 10) / 10;
+    return tool === "hl" ? { t: "hl", c: color, w: act.w, p: [[r(a[0]), r(a[1]), 0.5], [r(b[0]), r(b[1]), 0.5]] }
+      : { t: "line", c: color, w: act.w, x1: r(a[0]), y1: r(a[1]), x2: r(b[0]), y2: r(b[1]) };
+  }
+  window.addEventListener("pointermove", (e) => {
+    if (!act || !act.ruled) return;
+    const q = ruledPoint(e); act.it = ruledItem(act.start, q); preview(act.i, act.it);
+    ruler.read.textContent = `${cm(dist(act.start, q))} سم`;
+  });
+  ["pointerup", "pointercancel"].forEach((t) => window.addEventListener(t, () => { if (act && act.ruled) finishAct(); }));
+
+  // المنقلة: نصف دائرة بتدريج 0–180 من الجهتين، وذراع برتقالية تقيس الزاوية
+  const prot = makeInstrument("prot", "protBtn",
+    "📐 ضع مركز المنقلة على رأس الزاوية، ودوّرها بزر ↻ أو بإصبعين، واسحب النقطة البرتقالية لقياس الزاوية",
+    (inst) => {
+      const ppc = inst.ppc, R = Math.max(120, Math.round(ppc * 6)), m = 36, s = Math.max(20, Math.round(ppc * 0.8));
+      Object.assign(inst, { R, m, s, w: 2 * R + 2 * m, h: m + R + s + 48, pivot: [R + m, m + R] });
+      drawProt(inst);
+      const [px, py] = inst.pivot, by = py + s + 8;
+      setPos(inst.el.querySelector(".close"), px - R, by);
+      setPos(inst.el.querySelector(".rot"), px + R - 34, by);
+      const d = inst.el.querySelector(".draw"); setPos(d, px, by); d.style.transform = "translateX(-50%)";
+      const poly = [];
+      for (let a = 180; a >= 0; a -= 3) poly.push(`${(px + R * Math.cos(a / R2D)).toFixed(1)}px ${(py - R * Math.sin(a / R2D)).toFixed(1)}px`);
+      poly.push(`${px + R}px ${py + s}px`, `${px - R}px ${py + s}px`);
+      inst.body.style.clipPath = `polygon(${poly.join(",")})`;   // اللمس خارج نصف الدائرة يصل للورقة
+    });
+  prot.phi = 60;
+  const knob = $("#prot .prot-knob");
+  function drawProt(inst) {
+    const { R, m, s, w, phi } = inst, [px, py] = inst.pivot, pa = phi / R2D;
+    sizeCanvas(inst.body, w, m + R + s, (ctx) => {
+      ctx.beginPath(); ctx.moveTo(px - R, py); ctx.arc(px, py, R, Math.PI, 0); ctx.lineTo(px + R, py + s); ctx.lineTo(px - R, py + s); ctx.closePath();
+      ctx.fillStyle = "rgba(219,234,254,.76)"; ctx.fill(); ctx.strokeStyle = "rgba(30,64,175,.6)"; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+      const f1 = Math.max(10, Math.round(R * 0.065)), f2 = Math.max(9, Math.round(R * 0.05));
+      for (let d = 0; d <= 180; d++) {
+        const c = Math.cos(d / R2D), sn = -Math.sin(d / R2D), len = d % 10 === 0 ? R * 0.11 : d % 5 === 0 ? R * 0.075 : R * 0.04;
+        ctx.strokeStyle = "#0f172a"; ctx.lineWidth = d % 10 === 0 ? 1.4 : 0.8;
+        line(ctx, px + R * c, py + R * sn, px + (R - len) * c, py + (R - len) * sn);
+        if (d % 10 === 0) {
+          const r1 = R - len - f1 * 0.9, r2 = R - len - f1 * 2.2;
+          ctx.font = `700 ${f1}px Tajawal, Arial, sans-serif`; ctx.fillStyle = "#0f172a"; ctx.fillText(String(d), px + r1 * c, py + r1 * sn);
+          ctx.font = `600 ${f2}px Tajawal, Arial, sans-serif`; ctx.fillStyle = "#64748b"; ctx.fillText(String(180 - d), px + r2 * c, py + r2 * sn);
+        }
+      }
+      ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 1.2; line(ctx, px - R, py, px + R, py);
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.stroke(); line(ctx, px, py - 10, px, py + 10);
+      ctx.fillStyle = "rgba(245,158,11,.28)"; ctx.beginPath(); ctx.moveTo(px, py); ctx.arc(px, py, R * 0.3, 0, -pa, true); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#d97706"; ctx.lineWidth = 2.6;
+      line(ctx, px, py, px + R, py); line(ctx, px, py, px + R * Math.cos(pa), py - R * Math.sin(pa));
+    });
+    setPos(knob, px + (R + 18) * Math.cos(pa), py - (R + 18) * Math.sin(pa));
+    setPos(inst.read, px + R * 0.45 * Math.cos(pa / 2), py - R * 0.45 * Math.sin(pa / 2));
+    inst.read.textContent = `${phi}°`;
+  }
+  prot.onMove = (rotating) => { prot.read.textContent = rotating ? `↻ ${shownDeg(prot.ang)}°` : `${prot.phi}°`; };
+  knob.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    try { knob.setPointerCapture(e.pointerId); } catch (err) { /* */ }
+    knob.dragging = true;
+  });
+  knob.addEventListener("pointermove", (e) => {
+    if (!knob.dragging) return;
+    const loc = prot.toLocal(layerPt(e));
+    let d = Math.atan2(prot.pivot[1] - loc[1], loc[0] - prot.pivot[0]) * R2D;
+    if (d < 0) d = d < -90 ? 180 : 0;
+    prot.phi = Math.round(d); drawProt(prot);
+  });
+  ["pointerup", "pointercancel"].forEach((t) => knob.addEventListener(t, () => { knob.dragging = false; }));
+  $("#prot .draw").addEventListener("click", () => {
+    if (prot.phi < 1) { toast("اسحب النقطة البرتقالية لفتح الزاوية أولاً"); return; }
+    const lr = layer.getBoundingClientRect(), [px, py] = prot.pivot, R = prot.R, a = prot.phi / R2D;
+    const cl = (loc) => { const q = prot.toLayer(loc); return { clientX: q[0] + lr.left, clientY: q[1] + lr.top }; };
+    const V = cl([px, py]), i = pageAt(V.clientX, V.clientY);
+    if (i < 0) { toast("ضع مركز المنقلة فوق الصفحة أولاً"); return; }
+    const page = doc.pages[i], P = (c) => pos(views[i].live, c, page).slice(0, 2).map((v) => Math.round(v * 100) / 100);
+    remember(i);
+    page.items.push({ t: "angle", c: color, w: width, v: P(V), a: P(cl([px + R, py])), b: P(cl([px + R * Math.cos(a), py - R * Math.sin(a)])), m: true });
+    if (current !== i) setCurrent(i);
+    changed(i); toast(`📐 رُسمت زاوية ${prot.phi}° على الصفحة`);
+  });
+
+  // ---------------- الصور ----------------
+  const imgCache = new Map();
+  function imageFor(id) {
+    let im = imgCache.get(id);
+    if (!im) {
+      im = new Image();
+      im.onload = () => doc.pages.forEach((p, k) => { if (p.items.some((it) => it.t === "img" && it.id === id)) render(k); });
+      im.src = doc.images[id] || ""; imgCache.set(id, im);
+    }
+    return im;
+  }
+  // حذف بيانات الصور التي لم تعد مستخدمة (ولا يحتاجها التراجع)
+  function pruneImages() {
+    const used = new Set();
+    doc.pages.forEach((p) => p.items.forEach((it) => { if (it.t === "img") used.add(it.id); }));
+    const hist = [...undo.values(), ...redo.values()].map((s) => s.join("")).join("");
+    Object.keys(doc.images).forEach((id) => { if (!used.has(id) && !hist.includes(id)) { delete doc.images[id]; imgCache.delete(id); } });
+  }
+  $("#imgBtn").addEventListener("click", () => { if (editing) finishEdit(); $("#imgInput").value = ""; $("#imgInput").click(); });
+  $("#imgInput").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    if (!/^image\//.test(file.type)) { toast("اختر ملف صورة"); return; }
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight));   // تصغير الصور الكبيرة لتوفير الذاكرة
+      const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+      const ctx = c.getContext("2d"); let data = "";
+      if (/png|gif|webp/.test(file.type)) { ctx.drawImage(im, 0, 0, c.width, c.height); data = c.toDataURL("image/png"); }
+      if (!data || data.length > 1500000) {
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(im, 0, 0, c.width, c.height);
+        data = c.toDataURL("image/jpeg", 0.85);
+      }
+      addImage(data, c.width, c.height);
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); toast("تعذّر فتح الصورة"); };
+    im.src = url;
+  });
+  function addImage(data, iw, ih) {
+    const i = current, page = doc.pages[i], id = "im" + Math.random().toString(36).slice(2, 10);
+    doc.images[id] = data; imageFor(id);
+    const k = Math.min(page.w * 0.7 / iw, page.h * 0.5 / ih, 1.5), wd = Math.round(iw * k), ht = Math.round(ih * k);
+    const r = views[i].el.getBoundingClientRect(), sr = $("#scroller").getBoundingClientRect();
+    const midY = ((Math.max(r.top, sr.top) + Math.min(r.bottom, sr.bottom)) / 2 - r.top) * page.h / r.height;   // وسط الجزء الظاهر من الصفحة
+    const it = { t: "img", id, x: Math.round((page.w - wd) / 2), y: Math.round(Math.max(20, Math.min(page.h - ht - 20, midY - ht / 2))), wd, ht };
+    const before = JSON.stringify(page.items);
+    page.items.push(it);
+    startEdit(i, it, before);
+    toast("🏞️ اسحب الصورة لتحريكها، وكبّرها من الزوايا، ثم اضغط ✓");
+  }
+  function pickImage(i, p) {
+    const items = doc.pages[i].items;
+    for (let k = items.length - 1; k >= 0; k--) {
+      const it = items[k];
+      if (it.t === "img" && p[0] >= it.x && p[0] <= it.x + it.wd && p[1] >= it.y && p[1] <= it.y + it.ht) { startEdit(i, it); return; }
+    }
+    toast("اضغط على صورة لتحريكها");
+  }
+  function startEdit(i, it, before) {
+    if (editing) finishEdit();
+    const page = doc.pages[i], v = views[i], box = mk("div", "img-edit");
+    box.innerHTML = '<img alt=""><div class="img-bar"><button class="tb" data-a="done">✓ <small>تم</small></button>'
+      + '<button class="tb" data-a="del" title="حذف الصورة">🗑️</button></div>'
+      + ["nw", "ne", "sw", "se"].map((c) => `<div class="img-h ${c}" data-c="${c}"></div>`).join("");
+    box.querySelector("img").src = doc.images[it.id] || "";
+    v.el.appendChild(box);
+    editing = { i, it, box, before: before || JSON.stringify(page.items) };
+    placeEditBox(); render(i);
+    let drag = null;
+    box.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("[data-a]")) return;
+      e.preventDefault(); e.stopPropagation();
+      try { box.setPointerCapture(e.pointerId); } catch (err) { /* */ }
+      drag = { id: e.pointerId, c: e.target.dataset.c || "", sx: e.clientX, sy: e.clientY, k: page.w / v.el.clientWidth, x: it.x, y: it.y, wd: it.wd, ht: it.ht };
+    });
+    box.addEventListener("pointermove", (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = (e.clientX - drag.sx) * drag.k, dy = (e.clientY - drag.sy) * drag.k, c = drag.c;
+      if (!c) { it.x = Math.round(drag.x + dx); it.y = Math.round(drag.y + dy); }
+      else {   // التكبير والتصغير من الزاوية مع الحفاظ على نسبة الصورة
+        const sx = c.includes("e") ? 1 : -1, sy = c.includes("s") ? 1 : -1;
+        let s = ((drag.wd + sx * dx) * drag.wd + (drag.ht + sy * dy) * drag.ht) / (drag.wd * drag.wd + drag.ht * drag.ht);
+        s = Math.max(s, 40 / Math.min(drag.wd, drag.ht));
+        it.wd = Math.round(drag.wd * s); it.ht = Math.round(drag.ht * s);
+        it.x = c.includes("w") ? drag.x + drag.wd - it.wd : drag.x;
+        it.y = c.includes("n") ? drag.y + drag.ht - it.ht : drag.y;
+      }
+      placeEditBox();
+    });
+    const end = (e) => { if (drag && e.pointerId === drag.id) drag = null; };
+    box.addEventListener("pointerup", end); box.addEventListener("pointercancel", end);
+    box.querySelector('[data-a="done"]').addEventListener("click", () => finishEdit());
+    box.querySelector('[data-a="del"]').addEventListener("click", () => deleteEditing());
+  }
+  function placeEditBox() {
+    const { i, it, box } = editing, page = doc.pages[i];
+    Object.assign(box.style, {
+      left: (it.x / page.w * 100) + "%", top: (it.y / page.h * 100) + "%",
+      width: (it.wd / page.w * 100) + "%", height: (it.ht / page.h * 100) + "%",
+    });
+    box.classList.toggle("bar-below", it.y / page.h * views[i].el.clientHeight < 64);
+  }
+  function finishEdit() {
+    if (!editing) return;
+    const { i, box, before } = editing; editing = null; box.remove();
+    const page = doc.pages[i];
+    if (JSON.stringify(page.items) !== before) {
+      const s = stack(undo, page.id); s.push(before); if (s.length > 60) s.shift();
+      stack(redo, page.id).length = 0;
+    }
+    changed(i);
+  }
+  function deleteEditing() {
+    if (!editing) return;
+    const { i, it } = editing, page = doc.pages[i];
+    page.items = page.items.filter((x) => x !== it);
+    finishEdit(); toast("🗑️ حُذفت الصورة");
+  }
+
   // ---------------- التصدير: PDF و PNG ----------------
   function composePage(i) {
     const page = doc.pages[i], c = document.createElement("canvas");
     c.width = page.w; c.height = page.h;
-    const ctx = c.getContext("2d"); drawPaper(ctx, page); page.items.forEach((it) => drawItem(ctx, it, false));
+    const ctx = c.getContext("2d"); drawPaper(ctx, page); drawAll(ctx, page.items, null);
     return c;
   }
   function b64ToBytes(b64) { const s = atob(b64), out = new Uint8Array(s.length); for (let k = 0; k < s.length; k++) out[k] = s.charCodeAt(k); return out; }
@@ -782,7 +1231,7 @@
   });
 
   // ---------------- البدء ----------------
-  window.vitaNotes = { doc: () => doc, buildPdf };   // للاختبار
+  window.vitaNotes = { doc: () => doc, buildPdf, ruler, prot, addImage };   // للاختبار
   $("#hint").textContent = HINTS.pen;
   build();
   $("#saved").textContent = "✓ يُحفظ تلقائياً في هذا المتصفح";
