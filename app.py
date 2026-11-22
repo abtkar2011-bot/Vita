@@ -392,6 +392,15 @@ div[role="radiogroup"] { gap: .3rem .6rem; }
 /* الدردشة - ترحيب */
 .vita-welcome { text-align: center; padding: 1.6rem 1rem .6rem; }
 .vita-welcome .vita-login-logo { width: 64px; height: 64px; font-size: 1.9rem; border-radius: 20px; }
+/* الشعار كصورة: عقل في مدار الكود */
+.vita-logo.has-img, .vita-login-logo.has-img {
+  background: none; padding: 0; overflow: hidden; box-shadow: 0 10px 28px rgba(91, 227, 154, .16);
+}
+.vita-logo.has-img img, .vita-login-logo.has-img img { width: 100%; height: 100%; display: block; }
+.vita-login-art {
+  display: block; width: 190px; height: 190px; margin: -1rem auto .2rem;
+  filter: drop-shadow(0 10px 30px rgba(127, 115, 227, .25));
+}
 .vita-welcome-title { font-size: 1.5rem; font-weight: 800; color: #f8fafc; }
 .vita-welcome-sub { color: var(--muted); margin-top: .3rem; }
 
@@ -507,6 +516,43 @@ def stretch_kwargs(func):
 
 def html_block(markup):
     st.markdown(markup, unsafe_allow_html=True)
+
+
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+
+@st.cache_data(show_spinner=False)
+def asset_data_uri(name):
+    """ملف من مجلد assets كرابط data: (أو نص فارغ إذا الملف غير موجود)."""
+    mime = "image/svg+xml" if name.endswith(".svg") else "image/png"
+    try:
+        with open(os.path.join(ASSETS_DIR, name), "rb") as f:
+            return f"data:{mime};base64," + base64.b64encode(f.read()).decode("ascii")
+    except OSError:
+        return ""
+
+
+def logo_tile(css_class):
+    """أيقونة فَطِن (عقل في مدار الكود)، وحرف «ف» كاحتياط إذا الصورة غير موجودة."""
+    uri = asset_data_uri("fatin_icon.svg")
+    if not uri:
+        return f'<div class="{css_class}">ف</div>'
+    return f'<div class="{css_class} has-img"><img src="{uri}" alt="شعار فَطِن"></div>'
+
+
+def page_icon():
+    """أيقونة تبويب المتصفح؛ ترجع للإيموجي إذا الصورة غير موجودة."""
+    try:
+        return Image.open(os.path.join(ASSETS_DIR, "fatin_icon.png"))
+    except OSError:
+        return "🧠"
+
+
+def login_logo():
+    uri = asset_data_uri("fatin_logo.svg")
+    if not uri:
+        return logo_tile("vita-login-logo")
+    return f'<img class="vita-login-art" src="{uri}" alt="شعار فَطِن">'
 
 
 def hash_password(username, password):
@@ -1477,7 +1523,7 @@ def render_login():
     _, center, _ = st.columns([1, 1.6, 1])
     with center:
         html_block(
-            '<div class="vita-login-brand"><div class="vita-login-logo">ف</div>'
+            f'<div class="vita-login-brand">{login_logo()}'
             '<div class="vita-login-title">فَطِن</div>'
             '<div class="vita-login-sub">مساعدك الدراسي الذكي — ذكاء اصطناعي، تنظيم، وتركيز في مكان واحد</div></div>'
         )
@@ -1512,7 +1558,7 @@ def render_sidebar():
     profile, stats, pomo = u["profile"], u["stats"], u["pomo"]
     with st.sidebar:
         html_block(
-            '<div class="vita-brand"><div class="vita-logo">ف</div><div>'
+            f'<div class="vita-brand">{logo_tile("vita-logo")}<div>'
             '<div class="vita-brand-name">فَطِن</div>'
             '<div class="vita-brand-sub">مساعدك الدراسي الذكي</div></div></div>'
         )
@@ -1585,7 +1631,7 @@ def page_chat():
 
     if not u["messages"]:
         html_block(
-            '<div class="vita-welcome"><div class="vita-login-logo">ف</div>'
+            f'<div class="vita-welcome">{logo_tile("vita-login-logo")}'
             f'<div class="vita-welcome-title">أهلاً {esc(u["profile"]["name"])}، أنا فَطِن 👋</div>'
             '<div class="vita-welcome-sub">مساعدك الدراسي الذكي. اختر اقتراحاً أو اكتب سؤالك بالأسفل.</div></div>'
         )
@@ -2843,7 +2889,7 @@ def page_profile():
 def main():
     st.set_page_config(
         page_title="فَطِن | مساعدك الدراسي الذكي",
-        page_icon="🧬",
+        page_icon=page_icon(),
         layout="wide",
         initial_sidebar_state="expanded",
     )
