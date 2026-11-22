@@ -63,6 +63,16 @@
     transition: opacity .25s; pointer-events: none; z-index: 30; }
   #toast.show { opacity: 1; }
   @media (max-width: 700px) { #thumbs { display: none; } .tb small { display: none; } }
+
+  /* اللمس والقلم: لا تحديد نص ولا قائمة ضغط مطوّل، ولا تكبير بالنقر المزدوج على الأزرار */
+  [hidden] { display: none !important; }
+  #app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .tb, .sw, select, input { touch-action: manipulation; }
+  /* القفل: يمنع تكبير الصفحة بإصبعين ويبقي الدفتر ثابتاً */
+  html.locked, html.locked body { touch-action: pan-x pan-y; overscroll-behavior: none; }
+  .tb.off { opacity: .4; }
+  #lockBtn.on { background: rgba(245,158,11,.22); border-color: rgba(245,158,11,.75); }
+  #lockBtn.holding { background: rgba(239,68,68,.4); border-color: #ef4444; transition: background .7s; }
 </style>
 </head>
 <body>
@@ -121,6 +131,7 @@
       <button class="tb" id="penOnly" title="الرسم بالقلم الإلكتروني فقط (الإصبع للتمرير)">✍️</button>
       <button class="tb primary" id="pdfBtn" title="حفظ كل الصفحات كملف PDF">⬇️ PDF</button>
       <button class="tb" id="pngBtn" title="حفظ الصفحة الحالية كصورة">🖼️</button>
+      <button class="tb" id="lockBtn" hidden title="قفل ملء الشاشة: يمنع الخروج بالخطأ أثناء الكتابة (اضغط مطولاً لفتحه)">🔓 <small>قفل</small></button>
       <button class="tb" id="fsBtn" title="ملء الشاشة">⛶ <small>ملء الشاشة</small></button>
     </div>
   </div>
@@ -639,7 +650,7 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); }
     if (e.key === "Escape" && pending) { pending = null; views.forEach((_, k) => clearLive(k)); }
-    else if (e.key === "Escape" && expanded && !document.fullscreenElement) setExpanded(false);
+    else if (e.key === "Escape" && expanded && !locked && !document.fullscreenElement) setExpanded(false);
   });
   // تحديد الصفحة الحالية أثناء التمرير
   $("#scroller").addEventListener("scroll", () => {
@@ -649,38 +660,74 @@
     if (best !== current) setCurrent(best);
   });
 
-  // ---------------- ملء الشاشة ----------------
-  // الدفتر يُكبَّر أولاً ليغطي النافذة كلها (يعمل في كل المتصفحات وحتى الآيفون)،
-  // ثم نطلب ملء الشاشة الحقيقي إن سمح به المتصفح.
+  // ---------------- ملء الشاشة + القفل ----------------
+  // الدفتر يُكبَّر أولاً ليغطي النافذة كلها (يعمل في كل المتصفحات)، ثم نطلب ملء الشاشة الحقيقي
+  // في الكمبيوتر فقط. في الآيباد والأجهزة اللمسية لا نطلبه: Safari يخرج منه بسحبة للأسفل،
+  // وخط القلم النازل يُحسب سحبة فيطلع الدفتر من ملء الشاشة أثناء الكتابة.
+  const TOUCH_FIRST = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    || (navigator.maxTouchPoints > 0 && matchMedia("(pointer: coarse)").matches);
   const hostFrame = (() => { try { return window.frameElement; } catch (e) { return null; } })();
-  let expanded = false, frameStyle = "", hostOverflow = "";
+  let expanded = false, locked = false, frameStyle = "", hostOverflow = "", lockHintShown = false;
   function setExpanded(on) {
     if (on === expanded) return;
     expanded = on;
+    if (!on) setLocked(false);
     if (hostFrame) {
       const hostBody = hostFrame.ownerDocument.body;
       if (on) {
         frameStyle = hostFrame.getAttribute("style") || ""; hostOverflow = hostBody.style.overflow;
-        hostFrame.style.cssText = frameStyle + ";position:fixed;inset:0;width:100vw;height:100vh;max-width:none;z-index:1000000;border:0;background:#0b1020";
+        hostFrame.style.cssText = frameStyle + ";position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-width:none;z-index:1000000;border:0;background:#0b1020";
         hostBody.style.overflow = "hidden";
       } else {
         hostFrame.setAttribute("style", frameStyle); hostBody.style.overflow = hostOverflow;
       }
     }
     $("#fsBtn").innerHTML = on ? "🗗 <small>خروج</small>" : "⛶ <small>ملء الشاشة</small>";
+    $("#lockBtn").hidden = !on;
+    if (on && TOUCH_FIRST && !lockHintShown) { lockHintShown = true; toast("💡 اضغط «🔓 قفل» حتى لا يخرج الدفتر من ملء الشاشة أثناء الكتابة"); }
     setTimeout(layout, 120);
   }
+  function setLocked(on) {
+    locked = on;
+    document.documentElement.classList.toggle("locked", on);
+    $("#lockBtn").classList.toggle("on", on);
+    $("#lockBtn").innerHTML = on ? "🔒 <small>مقفول</small>" : "🔓 <small>قفل</small>";
+    $("#fsBtn").classList.toggle("off", on);
+  }
   $("#fsBtn").addEventListener("click", () => {
+    if (locked) { toast("🔒 الدفتر مقفول. اضغط مطولاً على زر القفل لفتحه"); return; }
     if (expanded) {
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       setExpanded(false);
       return;
     }
     setExpanded(true);
-    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    if (!TOUCH_FIRST && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
   });
-  // الخروج من ملء الشاشة الحقيقي (بزر Esc) يعيد الدفتر لحجمه أيضاً
-  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) setExpanded(false); else setTimeout(layout, 120); });
+  // زر القفل: نقرة تقفل، والفتح بضغطة مطوّلة حتى لا تفتحه راحة اليد أو القلم بالخطأ
+  const lockBtn = $("#lockBtn");
+  let holdTimer = null;
+  lockBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (!locked) { setLocked(true); toast("🔒 قُفل الدفتر: لن يخرج من ملء الشاشة حتى تفتح القفل"); return; }
+    lockBtn.classList.add("holding");
+    holdTimer = setTimeout(() => { holdTimer = null; lockBtn.classList.remove("holding"); setLocked(false); toast("🔓 فُتح القفل"); }, 700);
+  });
+  const cancelHold = () => {
+    if (!holdTimer) return;
+    clearTimeout(holdTimer); holdTimer = null; lockBtn.classList.remove("holding");
+    toast("اضغط مطولاً على القفل لفتحه");
+  };
+  ["pointerup", "pointerleave", "pointercancel"].forEach((t) => lockBtn.addEventListener(t, cancelHold));
+  lockBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+  // منع تكبير الصفحة بإصبعين (Safari) أثناء ملء الشاشة
+  ["gesturestart", "gesturechange"].forEach((t) => document.addEventListener(t, (e) => { if (expanded) e.preventDefault(); }, { passive: false }));
+  // إذا خرج المتصفح من ملء الشاشة الحقيقي (Esc أو إيماءة): يرجع الدفتر لحجمه، إلا إذا كان مقفولاً
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && !locked) setExpanded(false);
+    else setTimeout(layout, 120);
+  });
 
   // ---------------- التصدير: PDF و PNG ----------------
   function composePage(i) {
