@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Vita — مساعدك الدراسي الذكي 🧬
+فَطِن — مساعدك الدراسي الذكي 🧬
 تطبيق Streamlit عربي (RTL) بتصميم داكن، مدعوم بـ Gemini API عبر REST مع بث مباشر للإجابات.
 
 التشغيل محلياً:
@@ -12,7 +12,7 @@ Vita — مساعدك الدراسي الذكي 🧬
     GEMINI_API_KEY = "..."
 
 بدون مفتاح يعمل التطبيق بخدمة ذكاء اصطناعي مجانية (Pollinations)،
-وإذا كانت مشغولة يرد Vita بإجابات محلية جاهزة حتى لا يتوقف العرض.
+وإذا كانت مشغولة يرد فَطِن بإجابات محلية جاهزة حتى لا يتوقف العرض.
 """
 
 import base64
@@ -52,7 +52,7 @@ except ImportError:  # pragma: no cover
 # ==================================================================
 # الإعدادات العامة
 # ==================================================================
-APP_NAME = "Vita"
+APP_NAME = "فَطِن"
 DEFAULT_MODEL = "gemini-3.8-flash"
 # نماذج احتياطية تُجرَّب تلقائياً إذا لم يكن النموذج الأساسي متاحاً (خطأ 404)
 FALLBACK_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"]
@@ -68,9 +68,9 @@ FREE_MAX_DOC_CHARS = 20_000
 FREE_MAX_WAIT = 40
 
 SYSTEM_INSTRUCTION = (
-    "أنت Vita، مساعد دراسي ذكي وودود صُمّم لمساعدة الطلاب. "
-    "عرّف نفسك دائماً باسم Vita عندما تُسأل عن اسمك أو هويتك أو من أنت، ولا تقدّم نفسك باسم آخر، "
-    "واكتب اسمك دائماً بالحروف اللاتينية هكذا: Vita. "
+    "أنت فَطِن، مساعد دراسي ذكي وودود صُمّم لمساعدة الطلاب. "
+    "عرّف نفسك دائماً باسم فَطِن عندما تُسأل عن اسمك أو هويتك أو من أنت، ولا تقدّم نفسك باسم آخر، "
+    "واكتب اسمك دائماً بالعربية مع التشكيل هكذا: فَطِن. "
     "أجب باللغة العربية الفصحى المبسّطة ما لم يطلب المستخدم لغة أخرى. "
     "نظّم إجاباتك بعناوين ونقاط واضحة عند الحاجة، واشرح المفاهيم خطوة بخطوة مع أمثلة، "
     "وشجّع الطالب على الفهم العميق بدلاً من الحفظ. "
@@ -78,7 +78,7 @@ SYSTEM_INSTRUCTION = (
 )
 
 NOTEBOOK_SYSTEM = (
-    "أنت Vita، مساعد مذاكرة ذكي متخصص في تحليل المستندات الدراسية. "
+    "أنت فَطِن، مساعد مذاكرة ذكي متخصص في تحليل المستندات الدراسية. "
     "اعتمد على محتوى المستند المرفق فقط ولا تخترع معلومات غير موجودة فيه. "
     "قد يكون النص مستخرجاً بالقراءة الضوئية من صور أو شرائح عرض، فصحّح الأخطاء الإملائية البسيطة "
     "وتجاهل النصوص العشوائية مثل Lorem ipsum أو Keyword. "
@@ -292,7 +292,7 @@ div[role="radiogroup"] { gap: .3rem .6rem; }
 [data-testid="stChatInput"] { border-radius: 16px; }
 [data-testid="stChatInput"] textarea { direction: rtl; text-align: right; }
 
-/* ---------- مكونات Vita ---------- */
+/* ---------- مكونات فَطِن ---------- */
 .vita-hero {
   display: flex; align-items: center; gap: 1.1rem; padding: 1.3rem 1.5rem; margin-bottom: 1.4rem;
   background: linear-gradient(135deg, rgba(139, 92, 246, .20), rgba(6, 182, 212, .08)), var(--card);
@@ -644,7 +644,7 @@ def new_user_data(username, password, display_name=None):
         "password": hash_password(username.lower(), password),
         "profile": {
             "name": display_name or username,
-            "bio": "طالب طموح يستخدم Vita لتنظيم مذاكرته وتحقيق أهدافه الدراسية 🚀",
+            "bio": "طالب طموح يستخدم فَطِن لتنظيم مذاكرته وتحقيق أهدافه الدراسية 🚀",
             "major": "",
             "avatar": "🎓",
             "avatar_img": None,
@@ -714,7 +714,7 @@ def start_session(key, message):
     st.session_state.current_user = key
     st.session_state.page = "chat"
     U()["stats"]["logins"] += 1
-    log_activity("🔐", "تسجيل الدخول إلى Vita")
+    log_activity("🔐", "تسجيل الدخول إلى فَطِن")
     flash(message, icon="👋")
     st.rerun()
 
@@ -743,16 +743,16 @@ def demo_login():
     key = "demo"
     users = st.session_state.users
     if key not in users:
-        data = new_user_data("demo", "demo", display_name="طالب Vita التجريبي")
+        data = new_user_data("demo", "demo", display_name="طالب فَطِن التجريبي")
         data["profile"].update(
             {
                 "avatar": "🦉",
                 "major": "طالب ثانوي – المسار العلمي",
-                "bio": "أحب الفيزياء والبرمجة 💡 أستخدم Vita لتلخيص دروسي وتنظيم جدول مذاكرتي والتركيز بتقنية بومودورو.",
+                "bio": "أحب الفيزياء والبرمجة 💡 أستخدم فَطِن لتلخيص دروسي وتنظيم جدول مذاكرتي والتركيز بتقنية بومودورو.",
             }
         )
         users[key] = data
-    start_session(key, "مرحباً بك في الحساب التجريبي لـ Vita ✨")
+    start_session(key, "مرحباً بك في الحساب التجريبي لفَطِن ✨")
 
 
 def logout():
@@ -946,15 +946,15 @@ def free_stream(contents, system_instruction, status):
             wait = retry_after_seconds(resp)
             resp.close()
             if wait > FREE_MAX_WAIT:
-                raise VitaError("Vita مشغول حالياً، أعد المحاولة بعد قليل.")
+                raise VitaError("فَطِن مشغول حالياً، أعد المحاولة بعد قليل.")
             for left in range(wait, 0, -1):
-                status.info(f"Vita مشغول قليلاً — سيُرسل سؤالك خلال {left} ثانية...", icon="⏳")
+                status.info(f"فَطِن مشغول قليلاً — سيُرسل سؤالك خلال {left} ثانية...", icon="⏳")
                 time.sleep(1)
-            status.markdown("💭 *Vita يفكر...*")
+            status.markdown("💭 *فَطِن يفكر...*")
             continue
         if resp.status_code != 200:
             resp.close()
-            raise VitaError("Vita غير متاح الآن، أعد المحاولة بعد قليل.")
+            raise VitaError("فَطِن غير متاح الآن، أعد المحاولة بعد قليل.")
 
         try:
             yield from iter_openai_sse(resp.iter_lines())
@@ -963,7 +963,7 @@ def free_stream(contents, system_instruction, status):
         finally:
             resp.close()
         return
-    raise VitaError("Vita مشغول حالياً، أعد المحاولة بعد قليل.")
+    raise VitaError("فَطِن مشغول حالياً، أعد المحاولة بعد قليل.")
 
 
 def ai_stream(contents, system_instruction, temperature, status, fallback=None):
@@ -1019,7 +1019,7 @@ def typewriter(chunks, state):
 def stream_answer(contents, system_instruction=SYSTEM_INSTRUCTION, temperature=0.7, fallback=None):
     state = {"text": "", "error": None}
     status = st.empty()
-    status.markdown("💭 *Vita يفكر...*")
+    status.markdown("💭 *فَطِن يفكر...*")
     st.write_stream(
         typewriter(ai_stream(contents, system_instruction, temperature, status, fallback), state)
     )
@@ -1146,7 +1146,7 @@ POMODORO_ANSWER = """### 🍅 تقنية بومودورو للتركيز
 
 💡 جرّبها الآن من صفحة **👤 الملف الشخصي والإنتاجية**، فالمؤقت جاهز ويحسب جلساتك تلقائياً!"""
 
-IDENTITY_ANSWER = """أنا **Vita** 👋، مساعدك الدراسي الذكي!
+IDENTITY_ANSWER = """أنا **فَطِن** 👋، مساعدك الدراسي الذكي!
 
 أستطيع مساعدتك في:
 - 💬 شرح الدروس والإجابة عن أسئلتك.
@@ -1155,7 +1155,7 @@ IDENTITY_ANSWER = """أنا **Vita** 👋، مساعدك الدراسي الذك
 - ⏱️ التركيز بتقنية بومودورو."""
 
 GREETING_ANSWER = (
-    "أهلاً وسهلاً بك! 😊 أنا **Vita**، مساعدك الدراسي. اسألني عن أي درس، أو جرّب أحد الاقتراحات: "
+    "أهلاً وسهلاً بك! 😊 أنا **فَطِن**، مساعدك الدراسي. اسألني عن أي درس، أو جرّب أحد الاقتراحات: "
     "قانون نيوتن، خطة مذاكرة، كتابة مقال، أو حل معادلة تربيعية."
 )
 THANKS_ANSWER = "العفو! 🌟 سعيد بمساعدتك. بالتوفيق في مذاكرتك، وأنا هنا متى احتجت أي شيء."
@@ -1477,8 +1477,8 @@ def render_login():
     _, center, _ = st.columns([1, 1.6, 1])
     with center:
         html_block(
-            '<div class="vita-login-brand"><div class="vita-login-logo">V</div>'
-            '<div class="vita-login-title">Vita</div>'
+            '<div class="vita-login-brand"><div class="vita-login-logo">ف</div>'
+            '<div class="vita-login-title">فَطِن</div>'
             '<div class="vita-login-sub">مساعدك الدراسي الذكي — ذكاء اصطناعي، تنظيم، وتركيز في مكان واحد</div></div>'
         )
         with st.form("login_form", clear_on_submit=False):
@@ -1486,7 +1486,7 @@ def render_login():
             username = st.text_input("اسم المستخدم", placeholder="مثال: sara_2026", max_chars=30)
             password = st.text_input("كلمة المرور", type="password", placeholder="اختر أي كلمة مرور")
             st.caption("إذا لم يكن الحساب موجوداً سيتم إنشاؤه تلقائياً بنفس البيانات.")
-            submitted = st.form_submit_button("دخول إلى Vita", type="primary")
+            submitted = st.form_submit_button("دخول إلى فَطِن", type="primary")
         if submitted:
             do_login(username, password)
 
@@ -1512,8 +1512,8 @@ def render_sidebar():
     profile, stats, pomo = u["profile"], u["stats"], u["pomo"]
     with st.sidebar:
         html_block(
-            '<div class="vita-brand"><div class="vita-logo">V</div><div>'
-            '<div class="vita-brand-name">Vita</div>'
+            '<div class="vita-brand"><div class="vita-logo">ف</div><div>'
+            '<div class="vita-brand-name">فَطِن</div>'
             '<div class="vita-brand-sub">مساعدك الدراسي الذكي</div></div></div>'
         )
         html_block(
@@ -1543,7 +1543,7 @@ def render_sidebar():
                 f"متبقٍ {math.ceil(left / 60)} د</div>"
             )
         st.button("🚪 تسجيل الخروج", key="logout_btn", on_click=logout)
-        html_block('<div class="vita-side-footer">Vita v1.0 · مشروع طلابي 🎓</div>')
+        html_block('<div class="vita-side-footer">فَطِن v1.0 · مشروع طلابي 🎓</div>')
 
 
 # ==================================================================
@@ -1552,7 +1552,7 @@ def render_sidebar():
 def reset_chat():
     u = U()
     if u["messages"]:
-        log_activity("🧹", "بدأت محادثة جديدة مع Vita")
+        log_activity("🧹", "بدأت محادثة جديدة مع فَطِن")
     u["messages"] = []
     flash("تم تصفير المحادثة — ابدأ محادثة جديدة!", icon="🧹")
 
@@ -1566,8 +1566,8 @@ def page_chat():
     page_header(
         "💬",
         "الدردشة الذكية",
-        "Vita Chat",
-        "اسأل Vita أي سؤال دراسي واحصل على إجابة منظمة تُكتب أمامك مباشرة.",
+        "دردشة فَطِن",
+        "اسأل فَطِن أي سؤال دراسي واحصل على إجابة منظمة تُكتب أمامك مباشرة.",
     )
 
     info_col, btn_col = st.columns([3, 1])
@@ -1585,8 +1585,8 @@ def page_chat():
 
     if not u["messages"]:
         html_block(
-            '<div class="vita-welcome"><div class="vita-login-logo">V</div>'
-            f'<div class="vita-welcome-title">أهلاً {esc(u["profile"]["name"])}، أنا Vita 👋</div>'
+            '<div class="vita-welcome"><div class="vita-login-logo">ف</div>'
+            f'<div class="vita-welcome-title">أهلاً {esc(u["profile"]["name"])}، أنا فَطِن 👋</div>'
             '<div class="vita-welcome-sub">مساعدك الدراسي الذكي. اختر اقتراحاً أو اكتب سؤالك بالأسفل.</div></div>'
         )
         cols = st.columns(2)
@@ -1600,7 +1600,7 @@ def page_chat():
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(tidy_math(msg["content"]))
 
-    prompt = st.chat_input("اكتب سؤالك لـ Vita هنا...")
+    prompt = st.chat_input("اكتب سؤالك لفَطِن هنا...")
     if not prompt:
         prompt = st.session_state.pop("pending_prompt", None)
     if not prompt:
@@ -1645,7 +1645,7 @@ def page_board():
     page_header(
         "🎨",
         "السبورة التفاعلية",
-        "Vita Notes",
+        "دفتر فَطِن",
         "دفتر بأوراق مسطّرة ومربعات، صفحات متعددة، أدوات هندسية بالقياسات، وحفظ PDF.",
     )
     components.html(
@@ -1770,7 +1770,7 @@ def page_sheets():
     b2.download_button(
         "⬇️ تصدير CSV",
         data=csv_bytes,
-        file_name=f"vita_study_plan_{date.today():%Y%m%d}.csv",
+        file_name=f"fatin_study_plan_{date.today():%Y%m%d}.csv",
         mime="text/csv",
         key="sheet_export",
         on_click=on_sheet_export,
@@ -2194,7 +2194,7 @@ def notebook_prompt(kind, text, filename, n_questions, difficulty):
 
 # ---------------- الاختبار التفاعلي ----------------
 QUIZ_SYSTEM = (
-    "أنت Vita، مساعد مذاكرة يصنع اختبارات دقيقة من المستندات الدراسية. "
+    "أنت فَطِن، مساعد مذاكرة يصنع اختبارات دقيقة من المستندات الدراسية. "
     "اعتمد على محتوى المستند فقط، وتجاهل نصوص القوالب العشوائية مثل Lorem ipsum. "
     "أعد دائماً JSON صالحاً فقط دون أي نص أو تنسيق إضافي."
 )
@@ -2277,14 +2277,14 @@ def generate_quiz(doc_text, filename, n_questions, difficulty):
     seed = hashlib.md5(f"{doc_text[:2000]}{time.time()}".encode("utf-8")).hexdigest()
     contents = [{"role": "user", "parts": [{"text": quiz_prompt(doc_text, filename, n_questions, difficulty)}]}]
     status = st.empty()
-    status.markdown("💭 *Vita يجهّز أسئلة الاختبار من المستند...*")
+    status.markdown("💭 *فَطِن يجهّز أسئلة الاختبار من المستند...*")
     raw = ""
     try:
         for chunk in ai_stream(contents, QUIZ_SYSTEM, 0.3, status, fallback=None):
             raw += chunk
             written = raw.count('"question"')
             if written:
-                status.markdown(f"✍️ *Vita يكتب السؤال {min(written, n_questions)} من {n_questions}...*")
+                status.markdown(f"✍️ *فَطِن يكتب السؤال {min(written, n_questions)} من {n_questions}...*")
     except VitaError:
         pass
     status.empty()
@@ -2384,8 +2384,8 @@ def page_notebook():
     page_header(
         "📚",
         "مساعد المستندات",
-        "Vita Notebook",
-        "ارفع أي ملف دراسي، ودع Vita يقرأه ويلخّصه ويحوّله إلى اختبار سريع وخريطة مفاهيمية.",
+        "مستندات فَطِن",
+        "ارفع أي ملف دراسي، ودع فَطِن يقرأه ويلخّصه ويحوّله إلى اختبار سريع وخريطة مفاهيمية.",
     )
 
     uploaded = st.file_uploader(
@@ -2399,7 +2399,7 @@ def page_notebook():
         html_block(
             '<div class="vita-card vita-empty"><div class="vita-empty-icon">📄</div>'
             '<div class="vita-section" style="justify-content:center">ابدأ برفع ملف دراسي</div>'
-            '<div class="vita-muted">يقبل Vita ملفات PDF (حتى المصوّرة منها)، Word، PowerPoint، Excel، الصور، '
+            '<div class="vita-muted">يقبل فَطِن ملفات PDF (حتى المصوّرة منها)، Word، PowerPoint، Excel، الصور، '
             "والملفات النصية، ويقرأ النصوص العربية والإنجليزية من الصور تلقائياً.</div>"
             '<div class="vita-feature-row">'
             + "".join(
@@ -2462,7 +2462,7 @@ def page_notebook():
     with st.expander("👁️ معاينة النص المستخرج"):
         html_block(f'<div class="vita-preview">{esc(text[:4000])}{"…" if len(text) > 4000 else ""}</div>')
 
-    section_title("🤖 أدوات Vita الذكية")
+    section_title("🤖 أدوات فَطِن الذكية")
     o1, o2 = st.columns(2)
     n_questions = o1.slider("عدد أسئلة الاختبار", 3, 15, 5, key="nb_questions")
     difficulty = o2.radio(
@@ -2479,7 +2479,7 @@ def page_notebook():
 
     view_key = f"nb_view_{file_id}"
     if clicked:
-        section_title(f"⏳ Vita يعمل على: {NOTEBOOK_TASKS[clicked]['title']}")
+        section_title(f"⏳ فَطِن يعمل على: {NOTEBOOK_TASKS[clicked]['title']}")
         doc_text = text[:doc_limit]
         if clicked == "quiz":  # اختبار تفاعلي: أسئلة يجيب عنها الطالب ثم يُصحَّح
             with st.container(border=True):
@@ -2842,7 +2842,7 @@ def page_profile():
 # ==================================================================
 def main():
     st.set_page_config(
-        page_title="Vita | مساعدك الدراسي الذكي",
+        page_title="فَطِن | مساعدك الدراسي الذكي",
         page_icon="🧬",
         layout="wide",
         initial_sidebar_state="expanded",

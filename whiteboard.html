@@ -726,12 +726,12 @@
   $("#pdfBtn").addEventListener("click", () => {
     toast("⏳ جارٍ تجهيز ملف PDF…");
     setTimeout(() => {
-      try { download(buildPdf(), `vita_notes_${stamp()}.pdf`); toast(`✅ حُفظ ملف PDF (${doc.pages.length} صفحات)`); }
+      try { download(buildPdf(), `fatin_notes_${stamp()}.pdf`); toast(`✅ حُفظ ملف PDF (${doc.pages.length} صفحات)`); }
       catch (e) { toast("تعذّر إنشاء PDF: " + e.message); }
     }, 50);
   });
   $("#pngBtn").addEventListener("click", () => {
-    composePage(current).toBlob((b) => { download(b, `vita_page_${current + 1}_${stamp()}.png`); toast("✅ حُفظت الصفحة كصورة"); }, "image/png");
+    composePage(current).toBlob((b) => { download(b, `fatin_page_${current + 1}_${stamp()}.png`); toast("✅ حُفظت الصفحة كصورة"); }, "image/png");
   });
 
   // ---------------- البدء ----------------
